@@ -1,0 +1,28 @@
+{
+  "bridge": {
+    "name": "Homebridge",
+    "username": "CC:22:3D:E3:CE:51",
+    "port": 51826,
+    "pin": "031-45-154"
+  },
+  "description": "This is an example configuration file for homebridge denon client",
+  "hint": "Always paste into jsonlint.com validation page before starting your homebridge, saves a lot of frustration",
+  "accessories": [
+    {
+      "accessory": "DenonClient",
+      "name": "AVR",
+      "ip": "192.168.11.35",
+      "zone": 1,
+      "defaultVolume": 30,
+      "defaultInput": "MPLAY"
+    },
+    {
+      "accessory": "DenonClient",
+      "name": "Zone2",
+      "ip": "192.168.11.35",
+      "zone": 2,
+      "defaultVolume": 30,
+      "defaultInput": "CD"
+    }
+  ]
+}
