@@ -1,19 +1,18 @@
 {
-  "name": "homebridge-denon",
+  "name": "homebridge-denon-avr",
   "version": "0.0.1",
-  "description": "Denon and Marantz AVR support for Homebridge: https://github.com/nfarina/homebridge",
+  "description": "Denon and possibly Marantz AVR support for Homebridge: https://github.com/nfarina/homebridge",
   "license": "ISC",
   "keywords": [
     "homebridge-plugin",
-    "Denon",
-    "Marantz"
+    "Denon"
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/xkonni/homebridge-denon.git"
+    "url": "git://github.com/nneubauer/homebridge-denon.git"
   },
   "bugs": {
-    "url": "git://github.com/xkonni/homebridge-denon.git/issues"
+    "url": "git://github.com/nneubauer/homebridge-denon.git/issues"
   },
   "engines": {
     "node": ">=0.12.0",
@@ -21,6 +20,6 @@
     "hap-nodejs": ">=0.4.13"
   },
   "dependencies": {
-    "denon-client": ">=0.2.4"
+    "marantz-denon-telnet": ">=0.0.8"
   }
 }
