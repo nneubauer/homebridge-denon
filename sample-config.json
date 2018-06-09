@@ -9,20 +9,16 @@
   "hint": "Always paste into jsonlint.com validation page before starting your homebridge, saves a lot of frustration",
   "accessories": [
     {
-      "accessory": "DenonClient",
-      "name": "AVR",
+      "accessory": "DenonAVR",
+      "name": "AVR on Media Player",
       "ip": "192.168.11.35",
-      "zone": 1,
-      "defaultVolume": 30,
-      "defaultInput": "MPLAY"
+      "requiredInput": "MPLAY"
     },
     {
-      "accessory": "DenonClient",
-      "name": "Zone2",
+      "accessory": "DenonAVR",
+      "name": "AVR on CD",
       "ip": "192.168.11.35",
-      "zone": 2,
-      "defaultVolume": 30,
-      "defaultInput": "CD"
+      "requiredInput": "CD"
     }
   ]
 }
