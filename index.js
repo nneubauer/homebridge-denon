@@ -1,5 +1,6 @@
 var Service, Characteristic;
-var Denon = require('marantz-denon-telnet');
+var request = require('request');
+var parseString = require('xml2js').parseString;
 
 module.exports = function (homebridge) {
   Service = homebridge.hap.Service;
@@ -16,36 +17,34 @@ function denonClient(log, config) {
   this.name = config['name'];
   this.ip = config['ip'];
 
-  this.requiredInput = config['input'] || false;
-  this.debug = config['debug'] || false;
-
-  // state variables
-  this.avr = new Denon(this.ip);
-  
+  this.requiredInput = config['requiredInput'] || false;
+  this.debug = config['debug'] || false;  
 }
 
 denonClient.prototype.getPowerState = function (callback, context) {
   this.log('getPowerState');
   var that = this;
 
-  this.avr.getPowerState(function(error, powerState) {
+  request('http://' + this.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
     if(error) {
       that.log("Error while getting power state %s", error);
-    }
-
-    if(powerState) {
-      // if it is on, still have to check if input matches
-      that.avr.getInput(function(error, input) {
-        if(error) {
-          that.log("Error while getting input state %s", error);
-        }
-  
-        callback(null, powerState && input == that.requiredInput);
-      });
+      callback(null, false);
     }
     else {
-      //not powered on, means off no matter the input
-      callback(null, powerState);
+      parseString(body, function (err, result) {
+        if(error) {
+          that.log("Error while parsing %s", err);
+          callback(null, false);
+        }
+        else {
+          that.log("Got power state to be %s", result.item.Power[0].value[0]);
+          that.log("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
+          
+          //It is on if it is powered and the correct onput is selected.
+          var isOn = ( result.item.Power[0].value[0] == 'ON' && result.item.InputFuncSelect[0].value[0] == that.requiredInput )
+          callback(null, isOn);
+        }
+      });
     }
   });
 };
@@ -53,36 +52,26 @@ denonClient.prototype.getPowerState = function (callback, context) {
 denonClient.prototype.setPowerState = function (powerState, callback, context) {
   this.log('setPowerState to: %s', powerState);
   var that = this;
-  
-  this.avr.setPowerState(powerState, function(error, data) {
-    that.log('Sent power state to be %s', data);
+
+  var stateString = (powerState ? 'On' : 'Standby');
+
+  request('http://' + that.ip + ':8080/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
     if(error) {
-      that.log("Error while setting power state %s", error);
+      that.log("Error while getting power state %s", error);
+      callback(null);
     }
-
-    //Get input to check if it matches
-    that.avr.getInput(function(error, input) {
-      if(error) {
-        that.log("Error while getting input state %s", error);
-      }
-
-      if(input != that.requiredInput) {
-        //Switch input
-        that.avr.setInput(that.requiredInput, function(error, data) {
-          that.log('Sent input state to be %s', that.requiredInput);
-
-          if(error) {
-            that.log("Error while setting input state %s", error);
-          }
-          //return after switching input
-          callback(null);
-        });
-      }
-      else {
-        //Return if input already matches
+    else if(powerState == true) {
+      // Switch to correct input if switching on
+      request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + that.requiredInput, function(error, response, body) {
+        if(error) {
+          that.log("Error while switching input %s", error);
+        }
         callback(null);
-      }
-    });    
+      });
+    } else {
+      //Switching off, just callback
+      callback();
+    }
   });
 };
 
