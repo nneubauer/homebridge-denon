@@ -19,6 +19,7 @@ function denonClient(log, config) {
   this.pollingInterval = 15000; //every 15 seconds
 
   this.requiredInput = config['requiredInput'] || false;
+  this.pollInputAll = config['pollInputAll'] || false;
   this.debug = config['debug'] || false;
 
   // Start the polling loop. It will be started after a random interval between 0 and 15 seconds to make sure
@@ -48,7 +49,7 @@ denonClient.prototype.pollForUpdates = function(that) {
               //that.log("Updating remote change of state...")
               that.homebridgeService.getCharacteristic(Characteristic.On).updateValue(result);
             }
-          }          
+          }
         });
     }
   }, that.pollingInterval);
@@ -72,9 +73,9 @@ denonClient.prototype.getPowerState = function (callback, context) {
         else {
           //that.log("Got power state to be %s", result.item.Power[0].value[0]);
           //that.log("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
-          
-          //It is on if it is powered and the correct onput is selected.
-          var isOn = ( result.item.Power[0].value[0] == 'ON' && result.item.InputFuncSelect[0].value[0] == that.requiredInput )
+
+          //It is on if it is powered and the correct input is selected.
+          var isOn = ( result.item.Power[0].value[0] == 'ON' && (result.item.InputFuncSelect[0].value[0] == that.requiredInput || that.pollInputAll))
           callback(null, isOn);
         }
       });
