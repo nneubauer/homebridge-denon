@@ -28,7 +28,9 @@ I add the option to make a general switch that polls for the state no matter the
 ## Config
 
 See sample-config.json.
+
 `requireInput` can be (untested): 'CD', 'SPOTIFY', 'CBL/SAT', 'DVD', 'BD', 'GAME', 'GAME2', 'AUX1', 'MPLAY', 'USB/IPOD', 'TUNER', 'NETWORK', 'TV', 'IRADIO', 'SAT/CBL', 'DOCK', 'IPOD', 'NET/USB', 'RHAPSODY', 'PANDORA', 'LASTFM', 'IRP', 'FAVORITES', 'SERVER'.
+
 `pollInputAll` make this value true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
 
 ## Further Reading and Thanks
