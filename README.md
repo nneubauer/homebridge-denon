@@ -1,7 +1,6 @@
 # A Plugin for hombridge to control a Denon AVR
 
-This has been forked from https://github.com/xkonni/homebridge-denon which unfortunatly uses a modified version of
-the node-denon-client and has little to no documentation.
+This has been forked from https://github.com/nneubauer/homebridge-denon which has been forked from https://github.com/xkonni/homebridge-denon which unfortunatly uses a modified version of the node-denon-client and has little to no documentation.
 
 ## Install
 
@@ -14,8 +13,8 @@ which I found not to work with newer Denon AVR generations (mine is X1400). Unti
 
 ## Idea
 
-Since there is no HomeKit AVR accessory type, my idea was to create bunch of switches. Each switch signifies an input source.
-I would have eg. one switch for DVD and one for MPLAY. The HomeKit switch should be "on" only if the AVR is powered AND the
+Since there is no HomeKit AVR accessory type, nneubauers idea was to create bunch of switches. Each switch signifies an input source.
+He would have eg. one switch for DVD and one for MPLAY. The HomeKit switch should be "on" only if the AVR is powered AND the
 correct input is set. Otherwise off.
 
 This allows you to create one switch for each input source and switch between input sources when the AVR is powered by just tapping
@@ -24,25 +23,20 @@ selected and will update the switches accordingly. For a short period of time it
 that could be overcome by making this plugin a platform instead of an accessory. If you wanted to improve this, feel free to fork
 and update accordingly.
 
+I add the option to make a general switch that polls for the state no matter the selected input. With this option, it is possible to have one main switch to turn on and off the receiver. You can still choose the default input when turning on the receiver with this switch.
+
 ## Config
 
-See sample-config.json. `requireInput` can be (untested): 'CD', 'SPOTIFY', 'CBL/SAT', 'DVD', 'BD', 'GAME', 'GAME2', 'AUX1', 'MPLAY', 'USB/IPOD', 'TUNER', 'NETWORK', 'TV', 'IRADIO', 'SAT/CBL', 'DOCK', 'IPOD', 'NET/USB', 'RHAPSODY', 'PANDORA', 'LASTFM', 'IRP', 'FAVORITES', 'SERVER'.
+See sample-config.json.
+`requireInput` can be (untested): 'CD', 'SPOTIFY', 'CBL/SAT', 'DVD', 'BD', 'GAME', 'GAME2', 'AUX1', 'MPLAY', 'USB/IPOD', 'TUNER', 'NETWORK', 'TV', 'IRADIO', 'SAT/CBL', 'DOCK', 'IPOD', 'NET/USB', 'RHAPSODY', 'PANDORA', 'LASTFM', 'IRP', 'FAVORITES', 'SERVER'.
+`pollInputAll` make this value true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
 
 ## Further Reading and Thanks
 
-This is my first plugin and I created it based on stuff I found on the net (Thanks for that):
-
-* https://github.com/k3erg/marantz-denon-telnet (client using Telnet, works but only supports a single switch)
-* https://github.com/lmoe/node-denon-client (client using Telnet but seems defunct)
-* http://blue-pc.net/2013/12/28/denon-av-reciever-ueber-http-steuern/ (info on controling the AVR using HTTP)
+Thanks to nneubauer for making a stable version that worked with newer Denon models like my AVR x1400.
 
 ## Bugs
 
 * Since based on polling, it appears that multiple inputs are set to "on" at the same time but that
   will heal with the next polling loop.
 * Inputs with special chars CBL/SAT do not work.
-
-## Disclaimer
-
-This was initially forked from a project which I completly changed so probably the git history will not be really accurate.
-Also, you use this at your own risk! ;)

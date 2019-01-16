@@ -12,7 +12,9 @@
       "accessory": "DenonAVR",
       "name": "AVR on Media Player",
       "ip": "192.168.11.35",
-      "requiredInput": "MPLAY"
+      "requiredInput": "MPLAY",
+	  "pollInputAll": true
+
     },
     {
       "accessory": "DenonAVR",
