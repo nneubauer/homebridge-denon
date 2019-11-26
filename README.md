@@ -1,19 +1,19 @@
-# hombridge-denon-heos
+# homebridge-denon-heos
 
-[![NPM version](https://badge.fury.io/js/hombridge-denon-heos.svg)](https://npmjs.org/package/hombridge-denon-heos)
+[![NPM version](https://badge.fury.io/js/homebridge-denon-heos.svg)](https://npmjs.org/package/homebridge-denon-heos)
 ![License](https://img.shields.io/badge/license-ISC-lightgrey.svg)
-[![Downloads](https://img.shields.io/npm/dm/hombridge-denon-heos.svg)](https://npmjs.org/package/hombridge-denon-heos)
+[![Downloads](https://img.shields.io/npm/dm/homebridge-denon-heos.svg)](https://npmjs.org/package/homebridge-denon-heos)
 
-## A Plugin for hombridge to control a Denon AVR
+## A Plugin for homebridge to control a Denon AVR
 
 This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver). THe plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which has been forked from [xkonni/homebridge-denon](https://github.com/xkonni/homebridge-denon) which unfortunately uses a modified version of the node-denon-client and has little to no documentation.
 
 ## Install
 
-The plugin registers as [hombridge-denon-heos](https://www.npmjs.com/package/hombridge-denon-heos) as I found that the original [homebridge-denon](https://www.npmjs.com/package/homebridge-denon) and all other plugins I tested were not working with newer Denon AVR generations (mine is X1400) or used the unstable telnet commands. You can install the package with the following command:
+The plugin registers as [homebridge-denon-heos](https://www.npmjs.com/package/homebridge-denon-heos) as I found that the original [homebridge-denon](https://www.npmjs.com/package/homebridge-denon) and all other plugins I tested were not working with newer Denon AVR generations (mine is X1400) or used the unstable telnet commands. You can install the package with the following command:
 
 ```
-(sudo) npm install -g hombridge-denon-heos
+(sudo) npm install -g homebridge-denon-heos
 ```
 
 ## Idea

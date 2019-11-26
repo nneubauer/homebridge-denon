@@ -1,6 +1,6 @@
 {
-  "name": "hombridge-denon-heos",
-  "version": "1.0.0",
+  "name": "homebridge-denon-heos",
+  "version": "1.0.2",
   "description": "Denon and possibly Marantz AVR support for Homebridge: https://github.com/nfarina/homebridge with support for newer version of receiver. This plugin uses the http commands to control the receivers",
   "main": "index.js",
   "scripts": {
@@ -8,22 +8,22 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Martvvliet/hombridge-denon-heos.git"
+    "url": "git+https://github.com/Martvvliet/homebridge-denon-heos.git"
   },
   "keywords": [
     "homebridge",
     "homebridge-plugin",
     "HomeKit",
-    "hombridge-denon-heos",
+    "homebridge-denon-heos",
     "Denon",
     "Heos"
   ],
   "author": "Konni, Nicolas Neubauer, Mart van Vliet",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Martvvliet/hombridge-denon-heos/issues"
+    "url": "https://github.com/Martvvliet/homebridge-denon-heos/issues"
   },
-  "homepage": "https://github.com/Martvvliet/hombridge-denon-heos#readme",
+  "homepage": "https://github.com/Martvvliet/homebridge-denon-heos#readme",
   "engines": {
     "node": ">=0.12.0",
     "homebridge": ">=0.2.0",
