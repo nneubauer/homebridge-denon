@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Martvvliet/homebridge-denon.git"
+    "url": "git+https://github.com/Martvvliet/hombridge-denon-heos.git"
   },
   "keywords": [
     "homebridge",
@@ -21,9 +21,9 @@
   "author": "Konni, Nicolas Neubauer, Mart van Vliet",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Martvvliet/homebridge-denon/issues"
+    "url": "https://github.com/Martvvliet/hombridge-denon-heos/issues"
   },
-  "homepage": "https://github.com/Martvvliet/homebridge-denon#readme",
+  "homepage": "https://github.com/Martvvliet/hombridge-denon-heos#readme",
   "engines": {
     "node": ">=0.12.0",
     "homebridge": ">=0.2.0",

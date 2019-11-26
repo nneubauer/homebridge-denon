@@ -13,7 +13,7 @@ This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control 
 The plugin registers as [hombridge-denon-heos](https://www.npmjs.com/package/hombridge-denon-heos) as I found that the original [homebridge-denon](https://www.npmjs.com/package/homebridge-denon) and all other plugins I tested were not working with newer Denon AVR generations (mine is X1400) or used the unstable telnet commands. You can install the package with the following command:
 
 ```
-(sudo) npm install -g hombridge-denon-heos.
+(sudo) npm install -g hombridge-denon-heos
 ```
 
 ## Idea
