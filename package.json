@@ -30,7 +30,10 @@
     "hap-nodejs": ">=0.4.13"
   },
   "dependencies": {
-    "request": ">=2.81.8",
-    "xml2js": ">=0.4.19"
+    "lgtv2": "^1.4.1",
+    "wake_on_lan": "^0.0.4",
+    "tcp-ping": "^0.1.1",
+    "mkdirp": "^0.5.1",
+    "persist-path": "^1.0.2"
   }
 }
