@@ -2,13 +2,21 @@ const fs = require('fs');
 const request = require('request');
 const parseString = require('xml2js').parseString;
 
+const pluginName = 'hombridge-denon-heos';
+const platformName = 'DenonAVR';
+
 let Service;
 let Characteristic;
+let Accessory;
+let UUIDGen;
 
-module.exports = function(homebridge) {
+module.exports = homebridge => {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
-	homebridge.registerAccessory('hombridge-denon-heos', 'DenonAVR', denonClient);
+	Accessory = homebridge.platformAccessory;
+	UUIDGen = homebridge.hap.uuid;
+
+	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
 
@@ -16,57 +24,87 @@ class denonClient {
 	constructor(log, config, api) {
 		this.log = log;
 		this.port = 3000;
+		this.api = api;
 
-		// configuration
-		this.name = config['name'] || 'Denon Receiver';
-		this.ip = config['ip'];
-		
-		this.pollingInterval = config['pollInterval'] || 5;
-		this.pollingInterval = this.pollingInterval * 1000;
+		this.accessories = [];
+		this.names = [];
+		this.ips = [];
+		this.pollingIntervals = [];
+		this.isTvServices = [];
+		this.volumeControls = [];
+		this.volumeLimits = [];
+		this.inputLists = [];
+		this.switchInfoMenuList = [];
+		this.tvServices = [];
+		this.speakerServices = [];
+		this.informationServices = [];
+		this.isConnectedList = [];
+		this.checkAliveIntervalList = [];
+		this.pollAllInputList = [];
+		this.manufacturerList = [];
+		this.modelNames = [];
+		this.serialNumbers = [];
+		this.firmwareRevisions = [];
 
-		this.isTvService = config['tvService'];
-		if (this.isTvService === undefined) {
-			this.log.debug('TV Service undefined -> false');
-			this.isTvService = false;
-		}
-
-		this.volumeControl = config['volumeControlBulb'];
-		if (this.volumeControl === undefined) {
-			this.volumeControl = false;
-		}
-		this.volumeLimit = config['volumeLimit'];
-		if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
-			this.volumeLimit = 100;
-		}
-
-		this.inputs = config['inputs'];
 
 		/* Setup settings button and info button */
 		this.infoButton = 'MNINF';
 		this.menuButton = 'MNMEN ON';
 
-		this.switchInfoMenu = config['switchInfoMenu'];
-		if (this.switchInfoMenu === true) {
-			let tempInfo = this.infoButton;
-			let tempMenu = this.menuButton;
-			this.infoButton = tempMenu;
-			this.menuButton = tempInfo;
+
+		// configuration
+		for (var i = 0; i < config.devices.length; i++) {
+			this.name = config.devices[i].name || 'Denon Receiver';
+			this.ip = config.devices[i].ip;
+			
+			this.pollingInterval = config.devices[i].pollInterval || 5;
+			this.pollingInterval = this.pollingInterval * 1000;
+
+			this.isTvService = config.devices[i].tvService;
+			if (this.isTvService === undefined) {
+				this.isTvService = false;
+			}
+
+			this.volumeControl = config.devices[i].volumeControlBulb;
+			if (this.volumeControl === undefined) {
+				this.volumeControl = false;
+			}
+			this.volumeLimit = config.devices[i].volumeLimit;
+			if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
+				this.volumeLimit = 100;
+			}
+
+			this.inputs = config.devices[i].inputs;
+
+			this.switchInfoMenu = config.devices[i].switchInfoMenu;
+			if (this.switchInfoMenu === true) {
+				let tempInfo = this.infoButton;
+				let tempMenu = this.menuButton;
+				this.infoButton = tempMenu;
+				this.menuButton = tempInfo;
+			}
+
+			/* setup variables */
+			this.connected = false;
+			this.checkAliveInterval = null;
+			
+			this.pollInputAll = config.devices[i].pollInputAll || false;
+
+			this.manufacturer = 'Denon';
+			this.modelName = config.devices[i].model || 'homebridge-denon-heos';
+			this.serialNumber = 'MVV123';
+			this.firmwareRevision = '0.0';
+			
+			/* the services */
+			this.retrieveDenonInformation();
+
+			// choose between new (tv integration) or old (legacy) services, in legacy mode the TV will appear as a Switch
+			if (this.isTvService) {
+				this.setupTvService();
+			} else {
+				this.setupLegacyService();
+			}
 		}
-
-		/* setup variables */
-		this.enabledServices = [];
-		this.connected = false;
-		this.checkAliveInterval = null;
-		
-		/* Legacy variables */
-		this.task_is_running = false;
-		this.requiredInput = config['requiredInput'] || false;
-		this.pollInputAll = config['pollInputAll'] || false;
-
-		this.manufacturer = 'Denon';
-		this.modelName = config['model'] || 'homebridge-denon-heos';
-		this.serialNumber = 'MVV123';
-		this.firmwareRevision = '0.0';
 
 		/* start the polling */
 		if (!this.checkAliveInterval) {
@@ -77,17 +115,9 @@ class denonClient {
 				this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), this.pollingInterval);
 			}
 		}
-
-		/* the services */
-		this.retrieveDenonInformation();
-
-		// choose between new (tv integration) or old (legacy) services, in legacy mode the TV will appear as a Switch
-		if (this.isTvService) {
-			this.setupTvService();
-		} else {
-			this.setupLegacyService();
-		}
 	}
+
+	configureAccessory(){}
 
 	/*****************************************
 	* Start of Setup services
@@ -117,15 +147,6 @@ class denonClient {
 				});
 			}
 		});
-
-		this.informationService = new Service.AccessoryInformation();
-		this.informationService
-			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
-			.setCharacteristic(Characteristic.Model, this.modelName)
-			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
-			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
-	
-		this.enabledServices.push(this.informationService);
 	}
 	/*****************************************
 	* End of Setup services
@@ -137,6 +158,8 @@ class denonClient {
 	 * Start of TV integration service 
 	 ****************************************/
 	setupTvService() {
+		let newAccesory = new Accessory(this.name, UUIDGen.generate(this.ip));
+
 		this.tvService = new Service.Television(this.name, 'tvService');
 		this.tvService
 			.setCharacteristic(Characteristic.ConfiguredName, this.name);
@@ -149,8 +172,8 @@ class denonClient {
 		this.tvService
 			.getCharacteristic(Characteristic.ActiveIdentifier)
 			.on('set', (inputIdentifier, callback) => {
-				this.log.debug('Denon - input source changed, new input source identifier: %d, source appId: %s', inputIdentifier, this.inputAppIds[inputIdentifier]);
-				this.setAppSwitchState(true, callback, this.inputAppIds[inputIdentifier]);
+				this.log.debug('Denon - input source changed, new input source identifier: %d, source inputID: %s', inputIdentifier, this.inputinputIDs[inputIdentifier]);
+				this.setAppSwitchState(true, callback, this.inputinputIDs[inputIdentifier]);
 			});
 		this.tvService
 			.getCharacteristic(Characteristic.RemoteKey)
@@ -164,14 +187,24 @@ class denonClient {
 				callback();
 			});
 
+		
+		newAccesory
+			.getService(Service.AccessoryInformation)
+			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+			.setCharacteristic(Characteristic.Model, this.modelName)
+			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
+			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
 
-		this.enabledServices.push(this.tvService);
+		newAccesory.addService(this.tvService);
 
-		this.setupTvSpeakerService();
-		this.setupInputSourcesService();
+		this.setupTvSpeakerService(newAccesory);
+		this.setupInputSourcesService(newAccesory);
+
+		this.accessories.push(newAccesory);
+		this.api.publishExternalAccessories(pluginName, [newAccesory]);
 	}
 
-	setupTvSpeakerService() {
+	setupTvSpeakerService(newAccesory) {
 		this.tvSpeakerService = new Service.TelevisionSpeaker(this.name + ' Volume', 'tvSpeakerService');
 		this.tvSpeakerService
 			.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
@@ -182,12 +215,12 @@ class denonClient {
 				this.log.debug('Denon - volume change over the remote control (VolumeSelector), pressed: %s', state === 1 ? 'Down' : 'Up');
 				this.setVolumeSwitch(state, callback, !state);
 			});
-
+		
+		newAccesory.addService(this.tvSpeakerService);
 		this.tvService.addLinkedService(this.tvSpeakerService);
-		this.enabledServices.push(this.tvSpeakerService);
 	}
 
-	setupInputSourcesService() {
+	setupInputSourcesService(newAccesory) {
 		this.log.debug('setupInputSourcesService');
 		if (this.inputs === undefined || this.inputs === null || this.inputs.length <= 0) {
 			return;
@@ -199,33 +232,36 @@ class denonClient {
 
 		let savedNames = {};
 
-		this.inputAppIds = new Array();
+		this.inputinputIDs = new Array();
 		this.inputs.forEach((value, i) => {
 
-			// get appid
-			let appId = null;
+			// get inputID
+			let inputID = null;
 
-			if (value.appId !== undefined) {
-				appId = value.appId;
+			if (value.inputID !== undefined) {
+				inputID = value.inputID;
 			} else {
-				appId = value;
+				inputID = value;
 			}
 
 			// get name		
-			let inputName = appId;
+			let inputName = inputID;
 
-			if (savedNames && savedNames[appId]) {
-				inputName = savedNames[appId];
+			if (savedNames && savedNames[inputID]) {
+				inputName = savedNames[inputID];
 			} else if (value.name) {
 				inputName = value.name;
 			}
 
-			// if appId not null or empty add the input
-			if (appId !== undefined && appId !== null && appId !== '') {
-				appId = appId.replace(/\s/g, ''); // remove all white spaces from the string
+			// if inputID not null or empty add the input
+			if (inputID !== undefined && inputID !== null && inputID !== '') {
+				inputID = inputID.replace(/\s/g, ''); // remove all white spaces from the string
 
-				let tmpInput = new Service.InputSource(appId, 'inputSource' + i);
+				// this.tvService.addService(Service.InputSource, 'inputSource' + i);
+				let tmpInput = new Service.InputSource(inputID, 'inputSource' + i);
 				tmpInput
+					// .getService(this.name + ' inputSource' + i)
+					// .getServiceByUUIDAndSubType(Service.InputSource,'inputSource' + i)
 					.setCharacteristic(Characteristic.Identifier, i)
 					.setCharacteristic(Characteristic.ConfiguredName, inputName)
 					.setCharacteristic(Characteristic.IsConfigured, Characteristic.IsConfigured.CONFIGURED)
@@ -233,15 +269,18 @@ class denonClient {
 					.setCharacteristic(Characteristic.CurrentVisibilityState, Characteristic.CurrentVisibilityState.SHOWN);
 
 				tmpInput
+					// .getService(this.name + ' inputSource' + i)
+					// .getServiceByUUIDAndSubType(Service.InputSource,'inputSource' + i)
 					.getCharacteristic(Characteristic.ConfiguredName)
 					.on('set', (name, callback) => {
-						savedNames[appId] = name;
+						savedNames[inputID] = name;
 						callback()
 					});
 
-				this.tvService.addLinkedService(tmpInput);
-				this.enabledServices.push(tmpInput);
-				this.inputAppIds.push(appId);
+				newAccesory.addService(tmpInput);
+				if (!tmpInput.linked)
+					this.tvService.addLinkedService(tmpInput);
+				this.inputinputIDs.push(inputID);
 			}
 
 		});
@@ -254,13 +293,34 @@ class denonClient {
 	 * Start of legacy service 
 	 ****************************************/
 	setupLegacyService() {
-		this.powerService = new Service.Switch(this.name);
+
+		this.powerService = new Accessory(this.name, UUIDGen.generate(this.ip));
+
+		// this.powerService.context = {1};
+
+
+		this.powerService.inputID = this.inputs[0];
+		this.powerService.addService(Service.Switch, this.name);
+
+		// this.enabledServices.push(this.powerService);
+
+		// this.api.publishExternalAccessories(pluginName, [this.powerService]);
+		// this.api.registerPlatformAccessories(pluginName, platformName, [this.powerService]);
+		
+
+		// this.powerService = new Service.Switch(this.name);
 		this.powerService
+			.getService(Service.Switch)
 			.getCharacteristic(Characteristic.On)
 			.on('get', this.getPowerState.bind(this))
 			.on('set', this.setPowerState.bind(this));
 
-		this.enabledServices.push(this.powerService);
+		this.powerService
+			.getService(Service.AccessoryInformation)
+			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+			.setCharacteristic(Characteristic.Model, this.modelName)
+			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
+			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
 	}
 
 	/*
@@ -289,14 +349,16 @@ class denonClient {
 							that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
 
 							//It is on if it is powered and the correct input is selected.
-							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.requiredInput || that.pollInputAll)) {
+							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputs[0].inputID || that.pollInputAll)) {
 								that.connected = true;
 							} else {
 								that.connected = false;
 							}
 							if (that.powerService) {
-								//that.log("Updating remote change of state...")
-								that.powerService.getCharacteristic(Characteristic.On).updateValue(that.connected);
+									that.powerService
+										.getService(Service.Switch)
+										.getCharacteristic(Characteristic.On)
+										.updateValue(that.connected);
 							}
 						}
 					});
@@ -316,12 +378,27 @@ class denonClient {
 		// this.log.debug('updateTvStatus state: %s', this.connected ? 'On' : 'Off');
 
 		if (!tvStatus) {
-			if (this.powerService) this.powerService.getCharacteristic(Characteristic.On).updateValue(false);
-			if (this.tvService) this.tvService.getCharacteristic(Characteristic.Active).updateValue(false); //tv service
-			if (this.volumeService) this.volumeService.getCharacteristic(Characteristic.On).updateValue(false);
+			if (this.powerService) 
+				this.powerService
+					.getCharacteristic(Characteristic.On)
+					.updateValue(false);
+			if (this.tvService) 
+				this.tvService
+							.getCharacteristic(Characteristic.Active)
+					.updateValue(false); //tv service
+			if (this.volumeService) 
+				this.volumeService
+					.getCharacteristic(Characteristic.On)
+					.updateValue(false);
 		} else {
-			if (this.powerService) this.powerService.getCharacteristic(Characteristic.On).updateValue(true);
-			if (this.tvService) this.tvService.getCharacteristic(Characteristic.Active).updateValue(true); //tv service
+			if (this.powerService) 
+				this.powerService
+					.getCharacteristic(Characteristic.On)
+					.updateValue(true);
+			if (this.tvService) 
+				this.tvService
+							.getCharacteristic(Characteristic.Active)
+					.updateValue(true); //tv service
 		}
 	}
 	/*****************************************
@@ -379,8 +456,8 @@ class denonClient {
 				callback(error);
 			} else if(state) {
 				/* Switch to correct input if switching on and legacy service */
-				if (!this.isTvService) {
-					request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + that.requiredInput, function(error, response, body) {
+				if (!this.isTvService && that.inputs.length > 0) {
+					request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + that.inputs[0].inputID, function(error, response, body) {
 						if(error) {
 						  	that.log("Error while switching input %s", error);
 						  	callback(error);
@@ -436,7 +513,7 @@ class denonClient {
 		callback();
 	}
 
-	getAppSwitchState(callback, appId) {
+	getAppSwitchState(callback, inputID) {
 		this.log.debug('getAppSwitchState');
 		if (this.connected) {
 			var that = this;
@@ -450,7 +527,7 @@ class denonClient {
 							callback(error);
 						}
 						else {		
-							appId = result.item.InputFuncSelect[0].value[0];
+							inputID = result.item.InputFuncSelect[0].value[0];
 							callback();
 						}
 					});
@@ -458,16 +535,16 @@ class denonClient {
 			});
 		} else {
 			callback(null, false);
-			setTimeout(this.checkForegroundApp.bind(this, callback, appId), 50);
+			setTimeout(this.checkForegroundApp.bind(this, callback, inputID), 50);
 		}
 	}
 
-	setAppSwitchState(state, callback, appId) {
+	setAppSwitchState(state, callback, inputID) {
 		this.log.debug('setAppSwitchState');
 		if (this.connected) {
 			if (state) {
 				var that = this;
-				request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + appId, function(error, response, body) {
+				request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + inputID, function(error, response, body) {
 					if(error) {
 						that.log.debug("Error while switching input %s", error);
 						callback(error);
@@ -531,13 +608,12 @@ class denonClient {
 		callback();
 	}
 
-	getServices() {
+	// getServices() {
 
-		return this.enabledServices;
-	} 	
+	// 	return this.enabledServices;
+	// } 	
 	/*****************************************
 	* End of Homebridge Setters/Getters
 	****************************************/
-
 }
 
