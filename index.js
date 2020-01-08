@@ -1,4 +1,3 @@
-const fs = require('fs');
 const request = require('request');
 const parseString = require('xml2js').parseString;
 
@@ -10,6 +9,8 @@ let Characteristic;
 let Accessory;
 let UUIDGen;
 
+var pollingInterval;
+
 module.exports = homebridge => {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
@@ -19,6 +20,12 @@ module.exports = homebridge => {
 	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
+function exitHandler(options, exitCode) {
+    // for (var i in this.legacyAccessories) {
+	// 	this.api.unregisterPlatformAccessories(pluginName, platformName, [this.legacyAccessories[i].returnAccessory()]);
+	// }
+}
+process.on('exit', exitHandler.bind(null,{cleanup:true}));
 
 class denonClient {
 	constructor(log, config, api) {
@@ -26,98 +33,47 @@ class denonClient {
 		this.port = 3000;
 		this.api = api;
 
-		this.accessories = [];
-		this.names = [];
-		this.ips = [];
-		this.pollingIntervals = [];
-		this.isTvServices = [];
-		this.volumeControls = [];
-		this.volumeLimits = [];
-		this.inputLists = [];
-		this.switchInfoMenuList = [];
-		this.tvServices = [];
-		this.speakerServices = [];
-		this.informationServices = [];
-		this.isConnectedList = [];
-		this.checkAliveIntervalList = [];
-		this.pollAllInputList = [];
-		this.manufacturerList = [];
-		this.modelNames = [];
-		this.serialNumbers = [];
-		this.firmwareRevisions = [];
-
+		this.tvAccessories = [];
+		this.legacyAccessories = [];
 
 		/* Setup settings button and info button */
 		this.infoButton = 'MNINF';
 		this.menuButton = 'MNMEN ON';
 
+		this.pollingInterval = config.pollInterval || 5;
+		this.pollingInterval = this.pollingInterval * 1000;
+
+		pollingInterval = this.pollingInterval;
+
+		this.devices = config.devices || [];
+		this.switches = config.switches || [];
+
+
+		/* the services */
+		// this.retrieveDenonInformation();
 
 		// configuration
-		for (var i = 0; i < config.devices.length; i++) {
-			this.name = config.devices[i].name || 'Denon Receiver';
-			this.ip = config.devices[i].ip;
-			
-			this.pollingInterval = config.devices[i].pollInterval || 5;
-			this.pollingInterval = this.pollingInterval * 1000;
-
-			this.isTvService = config.devices[i].tvService;
-			if (this.isTvService === undefined) {
-				this.isTvService = false;
-			}
-
-			this.volumeControl = config.devices[i].volumeControlBulb;
-			if (this.volumeControl === undefined) {
-				this.volumeControl = false;
-			}
-			this.volumeLimit = config.devices[i].volumeLimit;
-			if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
-				this.volumeLimit = 100;
-			}
-
-			this.inputs = config.devices[i].inputs;
-
-			this.switchInfoMenu = config.devices[i].switchInfoMenu;
-			if (this.switchInfoMenu === true) {
-				let tempInfo = this.infoButton;
-				let tempMenu = this.menuButton;
-				this.infoButton = tempMenu;
-				this.menuButton = tempInfo;
-			}
-
-			/* setup variables */
-			this.connected = false;
-			this.checkAliveInterval = null;
-			
-			this.pollInputAll = config.devices[i].pollInputAll || false;
-
-			this.manufacturer = 'Denon';
-			this.modelName = config.devices[i].model || 'homebridge-denon-heos';
-			this.serialNumber = 'MVV123';
-			this.firmwareRevision = '0.0';
-			
-			/* the services */
-			this.retrieveDenonInformation();
-
-			// choose between new (tv integration) or old (legacy) services, in legacy mode the TV will appear as a Switch
-			if (this.isTvService) {
-				this.setupTvService();
-			} else {
-				this.setupLegacyService();
-			}
+		for (var i in this.devices) {
+			this.tvAccessories.push(new tvClient(log, this.devices[i], api));
 		}
 
-		/* start the polling */
-		if (!this.checkAliveInterval) {
-			if (this.isTvService) {
-				this.checkAliveInterval = setInterval(this.checkTVState.bind(this, this.updateTvStatus.bind(this)), this.pollingInterval);
-			} else {
-				/* Start the polling loop. It will be started after a random interval between 0 and 15 seconds to make sure we don't poll all switches at the same time. */
-				this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), this.pollingInterval);
-			}
+
+		for (var i in this.switches) {
+			this.legacyAccessories.push(new legacyClient(log, this.switches[i], api));
 		}
+		
+		this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this));
 	}
 
 	configureAccessory(){}
+	removeAccessory(){}
+	didFinishLaunching(){
+
+		this.log.debug('didFinishLaunching');
+		for (var i in this.legacyAccessories) {
+			this.api.registerPlatformAccessories(pluginName, platformName, [this.legacyAccessories[i].returnAccessory()]);
+		}
+	}
 
 	/*****************************************
 	* Start of Setup services
@@ -152,13 +108,108 @@ class denonClient {
 	* End of Setup services
 	****************************************/
 
+}
 
-	
+class tvClient {
+	constructor(log, device, api) {
+		this.log = log;
+		this.port = 3000;
+		this.api = api;
+
+		// setTimeout(function, 1000);
+
+		/* Setup settings button and info button */
+		this.infoButton = 'MNINF';
+		this.menuButton = 'MNMEN ON';
+
+		// configuration
+		this.name = device.name || 'Denon Receiver';
+		this.ip = device.ip;
+
+		this.volumeControl = device.volumeControlBulb;
+		if (this.volumeControl === undefined) {
+			this.volumeControl = false;
+		}
+		this.volumeLimit = device.volumeLimit;
+		if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
+			this.volumeLimit = 100;
+		}
+
+		this.inputs = device.inputs;
+
+		this.switchInfoMenu = device.switchInfoMenu;
+		if (this.switchInfoMenu === true) {
+			let tempInfo = this.infoButton;
+			let tempMenu = this.menuButton;
+			this.infoButton = tempMenu;
+			this.menuButton = tempInfo;
+		}
+
+		/* setup variables */
+		this.connected = false;
+		this.inputIDSet = false;
+		this.inputIDs = new Array();
+		this.checkAliveInterval = null;
+			
+		this.pollAllInput = device.pollAllInput || false;
+
+		this.manufacturer = 'Denon';
+		this.modelName = device.model || 'homebridge-denon-heos';
+		this.serialNumber = 'MVV123';
+		this.firmwareRevision = '0.0';
+
+		this.setupTvService();
+		
+		/* start the polling */
+		if (!this.checkAliveInterval) {
+			this.checkAliveInterval = setInterval(this.checkTVState.bind(this, this.updateTvStatus.bind(this)), pollingInterval);
+		}
+
+
+	}
+
+	getAccessory(){
+		return this.tvAccesory;
+	}
+
+	/*****************************************
+	* Start of Setup services
+	****************************************/
+	retrieveDenonInformation() {
+		this.log.debug('retrieveDenonInformation');
+
+		var that = this;
+		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while getting power state %s", error);
+			} else {
+				parseString(body, function (err, result) {
+					if(error) {
+						that.log("Error while parsing %s", err);
+					} else {
+						var manufacturer = result.root.device[0].manufacturer[0];
+						var modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
+						var serialNumber = result.root.device[0].serialNumber[0];
+						var firmwareRevision = result.root.device[0].deviceList[0].device[3].firmware_version[0];
+
+						that.log.debug('Manufacturer: %s', manufacturer);
+						that.log.debug('Model: %s', modelName);
+						that.log.debug('Serialnumber: %s', serialNumber);
+						that.log.debug('Firmware: %s', firmwareRevision);
+					}
+				});
+			}
+		});
+	}
+	/*****************************************
+	* End of Setup services
+	****************************************/
+
 	/*****************************************
 	 * Start of TV integration service 
 	 ****************************************/
 	setupTvService() {
-		let newAccesory = new Accessory(this.name, UUIDGen.generate(this.ip));
+		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
 		this.tvService = new Service.Television(this.name, 'tvService');
 		this.tvService
@@ -172,9 +223,10 @@ class denonClient {
 		this.tvService
 			.getCharacteristic(Characteristic.ActiveIdentifier)
 			.on('set', (inputIdentifier, callback) => {
-				this.log.debug('Denon - input source changed, new input source identifier: %d, source inputID: %s', inputIdentifier, this.inputinputIDs[inputIdentifier]);
-				this.setAppSwitchState(true, callback, this.inputinputIDs[inputIdentifier]);
-			});
+				this.log.debug('Denon - input source changed, new input source identifier: %d, source inputID: %s', inputIdentifier, this.inputIDs[inputIdentifier]);
+				this.setAppSwitchState(true, callback, this.inputIDs[inputIdentifier]);
+			})
+			.on('get', this.getAppSwitchState.bind(this));
 		this.tvService
 			.getCharacteristic(Characteristic.RemoteKey)
 			.on('set', this.remoteKeyPress.bind(this));
@@ -188,23 +240,26 @@ class denonClient {
 			});
 
 		
-		newAccesory
+		this.tvAccesory
 			.getService(Service.AccessoryInformation)
 			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
 			.setCharacteristic(Characteristic.Model, this.modelName)
 			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
 			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
 
-		newAccesory.addService(this.tvService);
+		this.tvAccesory.addService(this.tvService);
 
-		this.setupTvSpeakerService(newAccesory);
-		this.setupInputSourcesService(newAccesory);
+		this.setupTvSpeakerService();
+		this.setupInputSourcesService();
 
-		this.accessories.push(newAccesory);
-		this.api.publishExternalAccessories(pluginName, [newAccesory]);
+
+
+		this.log.debug('publishExternalAccessories');
+		this.api.publishExternalAccessories(pluginName, [this.tvAccesory]);
 	}
 
-	setupTvSpeakerService(newAccesory) {
+	setupTvSpeakerService() {
+		this.log.debug('setupTvSpeakerService');
 		this.tvSpeakerService = new Service.TelevisionSpeaker(this.name + ' Volume', 'tvSpeakerService');
 		this.tvSpeakerService
 			.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
@@ -216,11 +271,11 @@ class denonClient {
 				this.setVolumeSwitch(state, callback, !state);
 			});
 		
-		newAccesory.addService(this.tvSpeakerService);
+		this.tvAccesory.addService(this.tvSpeakerService);
 		this.tvService.addLinkedService(this.tvSpeakerService);
 	}
 
-	setupInputSourcesService(newAccesory) {
+	setupInputSourcesService() {
 		this.log.debug('setupInputSourcesService');
 		if (this.inputs === undefined || this.inputs === null || this.inputs.length <= 0) {
 			return;
@@ -232,7 +287,6 @@ class denonClient {
 
 		let savedNames = {};
 
-		this.inputinputIDs = new Array();
 		this.inputs.forEach((value, i) => {
 
 			// get inputID
@@ -277,10 +331,10 @@ class denonClient {
 						callback()
 					});
 
-				newAccesory.addService(tmpInput);
+				this.tvAccesory.addService(tmpInput);
 				if (!tmpInput.linked)
 					this.tvService.addLinkedService(tmpInput);
-				this.inputinputIDs.push(inputID);
+				this.inputIDs.push(inputID);
 			}
 
 		});
@@ -289,92 +343,11 @@ class denonClient {
 	* End of TV integration service 
 	****************************************/
 
-	/*****************************************
-	 * Start of legacy service 
-	 ****************************************/
-	setupLegacyService() {
-
-		this.powerService = new Accessory(this.name, UUIDGen.generate(this.ip));
-
-		// this.powerService.context = {1};
-
-
-		this.powerService.inputID = this.inputs[0];
-		this.powerService.addService(Service.Switch, this.name);
-
-		// this.enabledServices.push(this.powerService);
-
-		// this.api.publishExternalAccessories(pluginName, [this.powerService]);
-		// this.api.registerPlatformAccessories(pluginName, platformName, [this.powerService]);
-		
-
-		// this.powerService = new Service.Switch(this.name);
-		this.powerService
-			.getService(Service.Switch)
-			.getCharacteristic(Characteristic.On)
-			.on('get', this.getPowerState.bind(this))
-			.on('set', this.setPowerState.bind(this));
-
-		this.powerService
-			.getService(Service.AccessoryInformation)
-			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
-			.setCharacteristic(Characteristic.Model, this.modelName)
-			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
-			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
-	}
-
-	/*
-	 * This will start a polling loop that goes on forever and updates
-	 * the on characteristic periodically.
-	 */
-
-	pollForUpdates() {
-		this.log.debug('pollForUpdates');
-
-		// if(!this.task_is_running){
-		// 	this.task_is_running = true;
-
-			var that = this;
-			request('http://' + that.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-				if(error) {
-					// that.log.debug("Error while getting power state %s", error);
-					that.connected = false;
-				} else {
-					parseString(body, function (err, result) {
-						if(error) {
-							// that.log.debug("Error while parsing %s", err);
-						}
-						else {	
-							that.log.debug("Got power state to be %s", result.item.Power[0].value[0]);
-							that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
-
-							//It is on if it is powered and the correct input is selected.
-							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputs[0].inputID || that.pollInputAll)) {
-								that.connected = true;
-							} else {
-								that.connected = false;
-							}
-							if (that.powerService) {
-									that.powerService
-										.getService(Service.Switch)
-										.getCharacteristic(Characteristic.On)
-										.updateValue(that.connected);
-							}
-						}
-					});
-				}
-			});
-		// }
-	}
-	/*****************************************
-	 * End of legacy service 
-	 ****************************************/
-
 
 	/*****************************************
 	 * Start of helper methods
 	 ****************************************/
-	updateTvStatus(error, tvStatus) {
+	updateTvStatus(error, tvStatus, inputID) {
 		// this.log.debug('updateTvStatus state: %s', this.connected ? 'On' : 'Off');
 
 		if (!tvStatus) {
@@ -384,7 +357,7 @@ class denonClient {
 					.updateValue(false);
 			if (this.tvService) 
 				this.tvService
-							.getCharacteristic(Characteristic.Active)
+					.getCharacteristic(Characteristic.Active)
 					.updateValue(false); //tv service
 			if (this.volumeService) 
 				this.volumeService
@@ -395,10 +368,11 @@ class denonClient {
 				this.powerService
 					.getCharacteristic(Characteristic.On)
 					.updateValue(true);
-			if (this.tvService) 
+			if (this.tvService) {
 				this.tvService
-							.getCharacteristic(Characteristic.Active)
+					.getCharacteristic(Characteristic.Active)
 					.updateValue(true); //tv service
+				}
 		}
 	}
 	/*****************************************
@@ -426,6 +400,17 @@ class denonClient {
 				else {		
 					//It is on if it is powered and the correct input is selected.
 					if ( result.item.Power[0].value[0] === 'ON' ) {
+						let inputName = result.item.InputFuncSelect[0].value[0];
+							for (let i = 0; i < that.inputIDs.length; i++) {
+								if (inputName === that.inputIDs[i]) {
+									if (that.inputIDSet === false)
+										that.tvService
+											.getCharacteristic(Characteristic.ActiveIdentifier)
+											.updateValue(i);
+									else 
+										that.inputIDSet = false;	
+								}
+							}
 						that.connected = true;
 					} else {
 						that.connected = false;
@@ -433,9 +418,8 @@ class denonClient {
 				}
 				});
 			}
-			// that.log.debug('checkTVState state 2: %s', that.connected ? 'On' : 'Off');
 		});
-		callback(null, this.connected);
+		callback(null, this.connected, this.inputID);
 	}
 
 
@@ -513,7 +497,7 @@ class denonClient {
 		callback();
 	}
 
-	getAppSwitchState(callback, inputID) {
+	getAppSwitchState(callback) {
 		this.log.debug('getAppSwitchState');
 		if (this.connected) {
 			var that = this;
@@ -527,34 +511,42 @@ class denonClient {
 							callback(error);
 						}
 						else {		
-							inputID = result.item.InputFuncSelect[0].value[0];
+							let inputName = result.item.InputFuncSelect[0].value[0];
+							for (let i = 0; i < that.inputIDs.length; i++) {
+								if (inputName === that.inputIDs[i]) {
+									that.tvService
+										.getCharacteristic(Characteristic.ActiveIdentifier)
+										.updateValue(i);
+								}
+							}
 							callback();
 						}
 					});
 				}
 			});
 		} else {
-			callback(null, false);
-			setTimeout(this.checkForegroundApp.bind(this, callback, inputID), 50);
+			callback();
 		}
 	}
 
-	setAppSwitchState(state, callback, inputID) {
+	setAppSwitchState(state, callback, inputName) {
 		this.log.debug('setAppSwitchState');
 		if (this.connected) {
 			if (state) {
 				var that = this;
-				request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + inputID, function(error, response, body) {
+				that.inputIDSet = true;
+				request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 					if(error) {
 						that.log.debug("Error while switching input %s", error);
-						callback(error);
+						if (callback)
+							callback(error);
 					} else {
-						callback();
+						if (callback)
+							callback();
 					}
 				});
-
 			}
-		} else {
+		} else if (callback) {
 			callback();
 		}
 	}
@@ -615,5 +607,178 @@ class denonClient {
 	/*****************************************
 	* End of Homebridge Setters/Getters
 	****************************************/
+}
+
+class legacyClient {
+	constructor(log, switches, api) {
+		this.log = log;
+		this.port = 3000;
+		this.api = api;
+
+		/* Get information from receiver  */
+		// this.retrieveDenonInformation();
+
+		// configuration
+		this.name = switches.name || 'Denon Input';
+		this.ip = switches.ip;
+
+		this.inputID = switches.inputID;
+
+		/* setup variables */
+		this.connected = false;
+		this.checkAliveInterval = null;
+			
+		this.pollAllInput = switches.pollAllInput || false;
+
+		this.manufacturer = 'Denon';
+		this.modelName = switches.model || 'homebridge-denon-heos';
+		this.serialNumber = 'MVV123';
+		this.firmwareRevision = '0.0';
+
+		this.setupLegacyService();
+
+		if (!this.checkAliveInterval) {
+			this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), pollingInterval);
+		}
+	}
+
+	/*****************************************
+	 * Start of legacy service 
+	 ****************************************/
+	setupLegacyService() {
+		var uuid = UUIDGen.generate(this.name+this.ip);
+
+		this.accessory =  new Accessory(this.name, uuid);
+		this.api.unregisterPlatformAccessories(pluginName, platformName, [this.accessory]);
+
+		this.accessory.reachable = true;
+		this.accessory.context.model = 'model';
+		this.accessory.context.url = 'url';
+		this.accessory.context.name = 'name';
+		this.accessory.context.displayName = 'displayName';
+		
+		this.switchService = new Service.Switch(this.name, 'legacyInput');
+		this.switchService
+			.getCharacteristic(Characteristic.On)
+			.on('get', this.getPowerState.bind(this))
+			.on('set', this.setPowerState.bind(this));
+
+		// powerService
+		// 	.addService(Service.Switch, 'Input')
+		// 	.getCharacteristic(Characteristic.On)
+		// 	.on('get', this.getPowerState.bind(this))
+		// 	.on('set', this.setPowerState.bind(this));
+
+		// this.api.updatePlatformAccessories([this.powerService]);
+
+		this.accessory
+			.getService(Service.AccessoryInformation)
+			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+			.setCharacteristic(Characteristic.Model, this.modelName)
+			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
+			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
+
+			this.accessory.addService(this.switchService);
+
+
+		this.log.debug('registerPlatformAccessories');
+		// this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+	}
+
+	returnAccessory(){
+		return this.accessory;
+	}
+
+	/*
+	 * This will start a polling loop that goes on forever and updates
+	 * the on characteristic periodically.
+	 */
+	pollForUpdates() {
+		var that = this;
+		request('http://' + that.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			if(error) {
+				// that.log.debug("Error while getting power state %s", error);
+				that.connected = false;
+			} else {
+				parseString(body, function (err, result) {
+					if(error) {
+						// that.log.debug("Error while parsing %s", err);
+					}
+					else {	
+						// that.log.debug("Got power state to be %s", result.item.Power[0].value[0]);
+						// that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
+
+						//It is on if it is powered and the correct input is selected.
+						if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
+							that.connected = true;
+						} else {
+							that.connected = false;
+						}
+						if (that.accessory) {
+								that.accessory
+									.getService(Service.Switch)
+									.getCharacteristic(Characteristic.On)
+									.updateValue(that.connected);
+						}
+					}
+				});
+			}
+		});
+	}
+
+	/*****************************************
+	 * End of legacy service 
+	 ****************************************/
+
+	getPowerState(callback) {
+		this.log.debug('getPowerState');
+		var that = this;
+		request('http://' + that.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			if(!error) {
+				parseString(body, function (err, result) {
+					if(error) {
+						// that.log.debug("Error while parsing %s", err);
+					}
+					else {	
+						//It is on if it is powered and the correct input is selected.
+						if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
+							that.connected = true;
+						} else {
+							that.connected = false;
+						}
+						callback(null, that.connected);
+					}
+				});
+			}
+		});
+	}
+
+	setPowerState(state, callback) {
+		this.log.debug('setPowerState state: %s', state ? 'On' : 'Off');
+		var that = this;
+	
+		var stateString = (state ? 'On' : 'Standby');
+	
+		request('http://' + that.ip + ':8080/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while setting power state %s", error);
+				callback(error);
+			} else if(state) {
+				/* Switch to correct input if switching on and legacy service */
+					request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + that.inputID, function(error, response, body) {
+						if(error) {
+						  	that.log("Error while switching input %s", error);
+						  	callback(error);
+						} else {
+							that.connected = true;
+						  	callback();
+						}
+					});
+			} else {
+				that.connected = false;
+				callback();
+			}
+		});
+	}
 }
 
