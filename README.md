@@ -39,10 +39,10 @@ Set `pollInputAll` to true if you want a main switch to turn of the receiver no 
 ## Demo images
 <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid2.gif>
 
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleInputs.PNG>
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleRemote.PNG>
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleSwitches.PNG>
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleSwitches2.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Inputs.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Remote.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches_2.PNG>
 
 
 ## Further Reading and Thanks
