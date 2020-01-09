@@ -10,6 +10,9 @@ let Accessory;
 let UUIDGen;
 
 var pollingInterval;
+/* Setup settings button and info button */
+var infoMenu = 'MNINF';
+var settingsMenu = 'MNMEN ON';
 
 module.exports = homebridge => {
 	Service = homebridge.hap.Service;
@@ -20,12 +23,6 @@ module.exports = homebridge => {
 	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
-function exitHandler(options, exitCode) {
-    // for (var i in this.legacyAccessories) {
-	// 	this.api.unregisterPlatformAccessories(pluginName, platformName, [this.legacyAccessories[i].returnAccessory()]);
-	// }
-}
-process.on('exit', exitHandler.bind(null,{cleanup:true}));
 
 class denonClient {
 	constructor(log, config, api) {
@@ -35,10 +32,6 @@ class denonClient {
 
 		this.tvAccessories = [];
 		this.legacyAccessories = [];
-
-		/* Setup settings button and info button */
-		this.infoButton = 'MNINF';
-		this.menuButton = 'MNMEN ON';
 
 		this.pollingInterval = config.pollInterval || 5;
 		this.pollingInterval = this.pollingInterval * 1000;
@@ -116,33 +109,28 @@ class tvClient {
 		this.port = 3000;
 		this.api = api;
 
-		// setTimeout(function, 1000);
-
-		/* Setup settings button and info button */
-		this.infoButton = 'MNINF';
-		this.menuButton = 'MNMEN ON';
-
 		// configuration
 		this.name = device.name || 'Denon Receiver';
 		this.ip = device.ip;
 
-		this.volumeControl = device.volumeControlBulb;
-		if (this.volumeControl === undefined) {
-			this.volumeControl = false;
-		}
-		this.volumeLimit = device.volumeLimit;
-		if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
-			this.volumeLimit = 100;
-		}
+		// this.volumeControl = device.volumeControlBulb;
+		// if (this.volumeControl === undefined) {
+		// 	this.volumeControl = false;
+		// }
+		// this.volumeLimit = device.volumeLimit;
+		// if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
+		// 	this.volumeLimit = 100;
+		// }
 
 		this.inputs = device.inputs;
 
 		this.switchInfoMenu = device.switchInfoMenu;
 		if (this.switchInfoMenu === true) {
-			let tempInfo = this.infoButton;
-			let tempMenu = this.menuButton;
-			this.infoButton = tempMenu;
-			this.menuButton = tempInfo;
+			this.infoButton = settingsMenu;
+			this.menuButton = infoMenu;
+		} else {
+			this.infoButton = infoMenu;
+			this.menuButton = settingsMenu;
 		}
 
 		/* setup variables */
@@ -151,8 +139,6 @@ class tvClient {
 		this.inputIDs = new Array();
 		this.checkAliveInterval = null;
 			
-		this.pollAllInput = device.pollAllInput || false;
-
 		this.manufacturer = 'Denon';
 		this.modelName = device.model || 'homebridge-denon-heos';
 		this.serialNumber = 'MVV123';
@@ -162,14 +148,10 @@ class tvClient {
 		
 		/* start the polling */
 		if (!this.checkAliveInterval) {
-			this.checkAliveInterval = setInterval(this.checkTVState.bind(this, this.updateTvStatus.bind(this)), pollingInterval);
+			this.checkAliveInterval = setInterval(this.checkReceiverState.bind(this, this.updateReceiverStatus.bind(this)), pollingInterval);
 		}
 
 
-	}
-
-	getAccessory(){
-		return this.tvAccesory;
 	}
 
 	/*****************************************
@@ -223,7 +205,6 @@ class tvClient {
 		this.tvService
 			.getCharacteristic(Characteristic.ActiveIdentifier)
 			.on('set', (inputIdentifier, callback) => {
-				this.log.debug('Denon - input source changed, new input source identifier: %d, source inputID: %s', inputIdentifier, this.inputIDs[inputIdentifier]);
 				this.setAppSwitchState(true, callback, this.inputIDs[inputIdentifier]);
 			})
 			.on('get', this.getAppSwitchState.bind(this));
@@ -253,7 +234,6 @@ class tvClient {
 		this.setupInputSourcesService();
 
 
-
 		this.log.debug('publishExternalAccessories');
 		this.api.publishExternalAccessories(pluginName, [this.tvAccesory]);
 	}
@@ -267,7 +247,7 @@ class tvClient {
 		this.tvSpeakerService
 			.getCharacteristic(Characteristic.VolumeSelector)
 			.on('set', (state, callback) => {
-				this.log.debug('Denon - volume change over the remote control (VolumeSelector), pressed: %s', state === 1 ? 'Down' : 'Up');
+				this.log.debug('Remote control (VolumeSelector), pressed: %s', state === 1 ? 'Down' : 'Up');
 				this.setVolumeSwitch(state, callback, !state);
 			});
 		
@@ -311,29 +291,24 @@ class tvClient {
 			if (inputID !== undefined && inputID !== null && inputID !== '') {
 				inputID = inputID.replace(/\s/g, ''); // remove all white spaces from the string
 
-				// this.tvService.addService(Service.InputSource, 'inputSource' + i);
-				let tmpInput = new Service.InputSource(inputID, 'inputSource' + i);
-				tmpInput
-					// .getService(this.name + ' inputSource' + i)
-					// .getServiceByUUIDAndSubType(Service.InputSource,'inputSource' + i)
+				let tempInput = new Service.InputSource(inputID, 'inputSource' + i);
+				tempInput
 					.setCharacteristic(Characteristic.Identifier, i)
 					.setCharacteristic(Characteristic.ConfiguredName, inputName)
 					.setCharacteristic(Characteristic.IsConfigured, Characteristic.IsConfigured.CONFIGURED)
 					.setCharacteristic(Characteristic.InputSourceType, Characteristic.InputSourceType.APPLICATION)
 					.setCharacteristic(Characteristic.CurrentVisibilityState, Characteristic.CurrentVisibilityState.SHOWN);
 
-				tmpInput
-					// .getService(this.name + ' inputSource' + i)
-					// .getServiceByUUIDAndSubType(Service.InputSource,'inputSource' + i)
+				tempInput
 					.getCharacteristic(Characteristic.ConfiguredName)
 					.on('set', (name, callback) => {
 						savedNames[inputID] = name;
 						callback()
 					});
 
-				this.tvAccesory.addService(tmpInput);
-				if (!tmpInput.linked)
-					this.tvService.addLinkedService(tmpInput);
+				this.tvAccesory.addService(tempInput);
+				if (!tempInput.linked)
+					this.tvService.addLinkedService(tempInput);
 				this.inputIDs.push(inputID);
 			}
 
@@ -347,9 +322,7 @@ class tvClient {
 	/*****************************************
 	 * Start of helper methods
 	 ****************************************/
-	updateTvStatus(error, tvStatus, inputID) {
-		// this.log.debug('updateTvStatus state: %s', this.connected ? 'On' : 'Off');
-
+	updateReceiverStatus(error, tvStatus, inputID) {
 		if (!tvStatus) {
 			if (this.powerService) 
 				this.powerService
@@ -382,10 +355,7 @@ class tvClient {
  	/*****************************************
 	 * Start of Homebridge Setters/Getters
 	 ****************************************/
-	checkTVState(callback) {
-		// this.log.debug(' ');
-		// this.log.debug('checkTVState state 1: %s', this.connected ? 'On' : 'Off');
-		
+	checkReceiverState(callback) {		
 		var that = this;
 
 		request('http://' + this.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
@@ -463,16 +433,9 @@ class tvClient {
 
 	setVolume(level, callback) {
 		if (this.connected) {
-			// this.log.debug('Denon - volume service - setting volume to %s, limit: %s', level, this.volumeLimit);
-			// if (level > this.volumeLimit) {
-			// 	level = this.volumeLimit;
-			// }
-			// this.lgtv.request('ssap://audio/setVolume', {
-			// 	volume: level
-			// });
 			callback();
 		} else {
-			callback(new Error('Denon - TV is not connected, cannot set volume'));
+			callback();
 		}
 	}
 
@@ -488,10 +451,7 @@ class tvClient {
 			request('http://' + this.ip + ':8080/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
 				if(error) {
 					that.log.debug("Error while setting volume: %s", error);
-					// callback(error);
-				} else {
-					// callback();
-				}
+				} 
 			});
 		}
 		callback();
@@ -599,11 +559,6 @@ class tvClient {
 		}
 		callback();
 	}
-
-	// getServices() {
-
-	// 	return this.enabledServices;
-	// } 	
 	/*****************************************
 	* End of Homebridge Setters/Getters
 	****************************************/
@@ -614,9 +569,6 @@ class legacyClient {
 		this.log = log;
 		this.port = 3000;
 		this.api = api;
-
-		/* Get information from receiver  */
-		// this.retrieveDenonInformation();
 
 		// configuration
 		this.name = switches.name || 'Denon Input';
@@ -662,14 +614,6 @@ class legacyClient {
 			.getCharacteristic(Characteristic.On)
 			.on('get', this.getPowerState.bind(this))
 			.on('set', this.setPowerState.bind(this));
-
-		// powerService
-		// 	.addService(Service.Switch, 'Input')
-		// 	.getCharacteristic(Characteristic.On)
-		// 	.on('get', this.getPowerState.bind(this))
-		// 	.on('set', this.setPowerState.bind(this));
-
-		// this.api.updatePlatformAccessories([this.powerService]);
 
 		this.accessory
 			.getService(Service.AccessoryInformation)
@@ -726,10 +670,6 @@ class legacyClient {
 		});
 	}
 
-	/*****************************************
-	 * End of legacy service 
-	 ****************************************/
-
 	getPowerState(callback) {
 		this.log.debug('getPowerState');
 		var that = this;
@@ -780,5 +720,9 @@ class legacyClient {
 			}
 		});
 	}
+
+	/*****************************************
+	 * End of legacy service 
+	 ****************************************/
 }
 
