@@ -38,12 +38,16 @@ Set `pollInputAll` to true if you want a main switch to turn of the receiver no 
 
 ## Demo images
 <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid2.gif>
+Left: Two times the same receiver as tv. Two seperate switches added which also control a predefined input.
+Right: When controlling the inputs with a tv tile, the seperate switches are updated.
 
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Inputs.PNG>
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Remote.PNG>
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches.PNG>
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches_2.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Inputs.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Remote.png>
+Left: The receiver added as tv. This enables the possibility to control the input and the power state in one tv block.
+Right: When the receiver is added as tv, the receiver can be controlled with the remote. The volume buttons can be used to control the volumes. The info butten can be configured as info menu and settings menu.
 
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches_2.png>
+Left: A sample dedicated switch is added. This switch can be used to turn on the receiver and set it to the correct input.
+Right: When settings the second dedicated switch, the input switces to Apple TV. The other switches is updated, and thus, turned off.
 
 ## Further Reading and Thanks
 
