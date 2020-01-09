@@ -8,6 +8,8 @@
 
 This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver). THe plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which has been forked from [xkonni/homebridge-denon](https://github.com/xkonni/homebridge-denon) which unfortunately uses a modified version of the node-denon-client and has little to no documentation.
 
+
+
 ## Install
 
 The plugin registers as [homebridge-denon-heos](https://www.npmjs.com/package/homebridge-denon-heos) as I found that the original [homebridge-denon](https://www.npmjs.com/package/homebridge-denon) and all other plugins I tested were not working with newer Denon AVR generations (mine is X1400) or used the unstable telnet commands. You can install the package with the following command:
@@ -33,6 +35,15 @@ See sample-config.json.
 `requireInput` can be (untested): `CD`, `SPOTIFY`, `CBL/SAT`, `DVD`, `BD`, `GAME`, `GAME2`, `AUX1`, `MPLAY`, `USB/IPOD`, `TUNER`, `NETWORK`, `TV`, `IRADIO`, `SAT/CBL`, `DOCK`, `IPOD`, `NET/USB`, `RHAPSODY`, `PANDORA`, `LASTFM`, `IRP`, `FAVORITES`, `SERVER`.
 
 Set `pollInputAll` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
+
+## Demo images
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid2.gif>
+
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleInputs.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleRemote.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleSwitches.PNG>
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleSwitches2.PNG>
+
 
 ## Further Reading and Thanks
 
