@@ -6,13 +6,14 @@
 
 ## A Plugin for homebridge to control a Denon AVR
 
-This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver). THe plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which has been forked from [xkonni/homebridge-denon](https://github.com/xkonni/homebridge-denon) which unfortunately uses a modified version of the node-denon-client and has little to no documentation.
+This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver). The plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which was the basis for version 1 of this plugin.
 
+Note: I'm not a javascript coder at all, so be easy on code improvements ;).
 
 
 ## Install
 
-The plugin registers as [homebridge-denon-heos](https://www.npmjs.com/package/homebridge-denon-heos) as I found that the original [homebridge-denon](https://www.npmjs.com/package/homebridge-denon) and all other plugins I tested were not working with newer Denon AVR generations (mine is X1400) or used the unstable telnet commands. You can install the package with the following command:
+The plugin registers as [homebridge-denon-heos](https://www.npmjs.com/package/homebridge-denon-heos). I found that the original [homebridge-denon](https://www.npmjs.com/package/homebridge-denon) and all other plugins I tested were not working with newer Denon AVR generations (mine is X1400) or used the unstable telnet commands. I'm aksing you to post an issue if you have problems or an idea about this plugin. You can install the package with the following command:
 
 ```
 (sudo) npm install -g homebridge-denon-heos
@@ -20,23 +21,23 @@ The plugin registers as [homebridge-denon-heos](https://www.npmjs.com/package/ho
 
 ## Idea
 
-Since there is no HomeKit AVR accessory type, [nneubauers](https://github.com/nneubauer) idea was to create bunch of switches. Each switch signifies an input source which I forked to a version I use now for over a year without any problems.
-The standard switches, which are available for all different input types, are 'on' if the receiver is turned on and when the input is set to the specific switch. This allows you to create one switch for each input source and switch between input sources when the AVR is powered by just tapping the switch for that source. There is a polling loop embedded which checks every couple of seconds what input source is currently selected and will update the switches accordingly. For a short period of time it will appear like both inputs are "on". I guess
-that could be overcome by making this plugin a platform instead of an accessory. 
+Since there is no HomeKit AVR accessory type, [nneubauers](https://github.com/nneubauer) idea was to create bunch of switches. Each switch signifies an input source which I forked to a version I use now for over a year without any problems. 
 
-### Additional functionality
 
-I add the option to make a general switch that polls for the state no matter the selected input. With this option, it is possible to have one main switch to turn on and off the receiver. You can still choose the default input when turning on the receiver with this switch. This functionality is configurable in the config with: `pollInputAll`
+### TV Accessories
+Since version 2.0, this plugin is extended with support for TV accessories. This means that you can add your receiver as a TV to your Homekit. This enables the posibility to change the input and the powerstate in one Homekit block. It also makes it possible to use the remote widget (or how it's called) to control the receiver and change the volume. This tv service is added to the plugin, so you can still use the switches if you want. An important note is that if you use the tv service, you have to add the them manually to your home app, after registering homebridge. This way it is possible to have more than one accessory which has remote widget support.
 
-## Config
+You can add multiple receivers by adding more than one `Device` in your config file. Every receiver must be registered manually ones after registering Homebridge. You can choose your input settings yourself. I added a list with all possible input settings I know of in Possible_inputs.json. You can add them all, but I only added the once I use, so the list stays short. It is also possible to change the name of the input to one with a personal touch ;).
 
-See sample-config.json.
+A TV accessory has support for an info and a settings button. Normaly the settings button is accessable in the home app and the info button is accesable through the remote widget. As I don't use the info button but do use the settings button, I made it possible to switch the functionality of these buttons. This way you can have the settings menu under the `I` button in the remote widget. The volume control works in steps of 0.5. In the future, this must be update so you can hold the button to increase the volume by more.
 
-`requireInput` can be (untested): `CD`, `SPOTIFY`, `CBL/SAT`, `DVD`, `BD`, `GAME`, `GAME2`, `AUX1`, `MPLAY`, `USB/IPOD`, `TUNER`, `NETWORK`, `TV`, `IRADIO`, `SAT/CBL`, `DOCK`, `IPOD`, `NET/USB`, `RHAPSODY`, `PANDORA`, `LASTFM`, `IRP`, `FAVORITES`, `SERVER`.
 
-Set `pollInputAll` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
+### Switches
+The standard switches, which are available for all different input types, are 'on' if the receiver is turned on and when the input is set to the specific switch. This allows you to create one switch for each input source and switch between input sources when the AVR is powered by just tapping the switch for that source. There is a polling loop embedded which checks every couple of seconds what input source is currently selected and will update the switches accordingly. For a short period of time it will appear like both inputs are "on". 
 
-## Demo images
+I add the option to make a general switch that polls for the state no matter the selected input. With this option, it is possible to have one main switch to turn on and off the receiver. You can still choose the default input when turning on the receiver with this switch. This functionality is configurable in the config with: `pollAllInput`.
+
+### Demo images
 <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid2.gif>
 
 Left: Two times the same receiver as tv. Two seperate switches added which also control a predefined input.
@@ -52,13 +53,60 @@ Right: When the receiver is added as tv, the receiver can be controlled with the
 Left: A sample dedicated switch is added. This switch can be used to turn on the receiver and set it to the correct input.
 Right: When settings the second dedicated switch, the input switces to Apple TV. The other switches is updated, and thus, turned off.
 
+
+
+
+## Config
+
+See sample-config.json.
+
+
+
+### TV Accessories
+    "platform": "DenonAVR",
+    "pollInterval": 3,
+    "devices": [{
+		   "name": "Denon Receiver",
+       "ip": "192.168.1.45",
+				"switchInfoMenu": true,
+				"inputs": [{
+				    "inputID": "MPLAY",
+					  "name": "Apple TV"
+				  },
+				  {
+				  	"inputID": "GAME",
+				  	"name": "iMac"
+				  },
+				  {
+					  "inputID": "TV",
+					  "name": "TV"
+				  },
+				  {
+					  "inputID": "AUX1",
+					  "name": "AUX"
+				}]
+      }]
+
+
+
+
+
+`inputID` can be (untested): `CD`, `SPOTIFY`, `CBL/SAT`, `DVD`, `BD`, `GAME`, `GAME2`, `AUX1`, `MPLAY`, `USB/IPOD`, `TUNER`, `NETWORK`, `TV`, `IRADIO`, `SAT/CBL`, `DOCK`, `IPOD`, `NET/USB`, `RHAPSODY`, `PANDORA`, `LASTFM`, `IRP`, `FAVORITES`, `SERVER`.
+
+Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
+
+
+
 ## Further Reading and Thanks
 
 Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version that worked with newer Denon models like my AVR x1400.
 
 ## Future work
 
-* In the future, I want to convert the package to a TV accessory, so it is possible to change the input of the receiver in the same way as the homekit enabled TV's do.
+* Add volume control with a Light Bulb.
+* Improve updating state of the multiple switches when changing one.
+* Improve volume control for remote widget.
+* Improve polling code for more efficiency.
 
 ## Bugs
 
