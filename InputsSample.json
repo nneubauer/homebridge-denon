@@ -1,0 +1,98 @@
+"inputs": [
+	{
+		"appId": "MPLAY",
+		"name": "MPLAY"
+	},
+	{
+		"appId": "GAME",
+		"name": "Game"
+	},
+	{
+		"appId": "TV",
+		"name": "TV"
+	},
+	{
+		"appId": "CD",
+		"name": "CD"
+	},
+	{
+		"appId": "SPOTIFY",
+		"name": "Spotify"
+	},
+	{
+		"appId": "CBL%2FSAT",
+		"name": "Cable/Satellite"
+	},
+	{
+		"appId": "DVD",
+		"name": "DVD"
+	},
+	{
+		"appId": "BD",
+		"name": "Blu-Ray"
+	},
+	{
+		"appId": "GAME2",
+		"name": "Game 2"
+	},
+	{
+		"appId": "AUX1",
+		"name": "Aux"
+	},
+	{
+		"appId": "USB%2FIPOD",
+		"name": "USB/iPod"
+	},
+	{
+		"appId": "TUNER",
+		"name": "Tuner"
+	},
+	{
+		"appId": "NETWORK",
+		"name": "Network"
+	},
+	{
+		"appId": "IRADIO",
+		"name": "IRadio"
+	},
+	{
+		"appId": "SAT%2FCBL",
+		"name": "Satellite/Cable"
+	},
+	{
+		"appId": "DOCK",
+		"name": "Dock"
+	},
+	{
+		"appId": "IPOD",
+		"name": " iPod"
+	},
+	{
+		"appId": "NET%2FUSB",
+		"name": "Network/USB"
+	},
+	{
+		"appId": "RHAPSODY",
+		"name": "Rhapsody"
+	},
+	{
+		"appId": "PANDORA",
+		"name": "Pandora"
+	},
+	{
+		"appId": "LASTFM",
+		"name": "LastFM"
+	},
+	{
+		"appId": "IRP",
+		"name": " IRP"
+	},
+	{
+		"appId": "FAVORITES",
+		"name": "Favorites"
+	},
+	{
+		"appId": "SERVER",
+		"name": "Server"
+	}
+]
