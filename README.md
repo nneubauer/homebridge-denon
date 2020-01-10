@@ -58,43 +58,62 @@ Right: When settings the second dedicated switch, the input switces to Apple TV.
 
 ## Config
 
-See sample-config.json.
-
-
+See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. One overall `pollInterval` must be set for all devices and switches. Default is 5. The following examples are given:
 
 ### TV Accessories
-    "platform": "DenonAVR",
-    "pollInterval": 3,
-    "devices": [{
-		   "name": "Denon Receiver",
-       "ip": "192.168.1.45",
-				"switchInfoMenu": true,
-				"inputs": [{
-				    "inputID": "MPLAY",
-					  "name": "Apple TV"
-				  },
-				  {
-				  	"inputID": "GAME",
-				  	"name": "iMac"
-				  },
-				  {
-					  "inputID": "TV",
-					  "name": "TV"
-				  },
-				  {
-					  "inputID": "AUX1",
-					  "name": "AUX"
-				}]
-      }]
+TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter.
 
+```json
+{
+	"platforms": [{
+		"platform": "DenonAVR",
+		"pollInterval": 3,
+		"devices": [{
+			"name": "Denon Receiver",
+			"ip": "192.168.1.45",
+			"switchInfoMenu": true,
+			"inputs": [{
+				"inputID": "MPLAY",
+				"name": "Apple TV"
+			},
+			{
+				"inputID": "GAME",
+				"name": "iMac"
+			},
+			{
+				"inputID": "TV",
+				"name": "TV"
+			},
+			{
+				"inputID": "AUX1",
+				"name": "AUX"
+			}]
+		}]
+	}]
+}
+```
 
-
-
-
-`inputID` can be (untested): `CD`, `SPOTIFY`, `CBL/SAT`, `DVD`, `BD`, `GAME`, `GAME2`, `AUX1`, `MPLAY`, `USB/IPOD`, `TUNER`, `NETWORK`, `TV`, `IRADIO`, `SAT/CBL`, `DOCK`, `IPOD`, `NET/USB`, `RHAPSODY`, `PANDORA`, `LASTFM`, `IRP`, `FAVORITES`, `SERVER`.
-
+### Switches
 Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
-
+```json
+{
+	"platforms": [{
+		"platform": "DenonAVR",
+		"pollInterval": 3,
+		"switches": [{
+			"name": "AVR on Apple TV",
+			"ip": "192.168.1.45",
+			"inputID": "MPLAY",
+			"pollAllInput": false
+		},
+		{
+			"name": "AVR on iMac",
+			"ip": "192.168.1.45",
+			"inputID": "GAME"
+		}]
+	}]
+}
+```
 
 
 ## Further Reading and Thanks
