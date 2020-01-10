@@ -130,4 +130,4 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 ## Bugs
 
-* Since based on polling, it appears that multiple inputs are set to "on" at the same time but that will heal with the next polling loop.
+No known bugs.
