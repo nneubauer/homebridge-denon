@@ -126,6 +126,7 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 * Improve updating state of the multiple switches when changing one.
 * Improve volume control for remote widget.
 * Improve polling code for more efficiency.
+* Add support for multi zone.
 
 ## Bugs
 
