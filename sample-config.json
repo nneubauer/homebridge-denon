@@ -1,25 +1,75 @@
 {
+	"mdns": {
+		"interface": "0.0.0.0"
+	},
 	"bridge": {
-	"name": "Homebridge",
-	"username": "CC:22:3D:E3:CE:51",
-	"port": 51826,
-	"pin": "031-45-154"
+		"name": "HomeBridge Test",
+		"username": "CC:22:3D:E3:CE:51",
+		"port": 51829,
+		"pin": "031-45-154"
 	},
 	"description": "This is an example configuration file for homebridge denon client",
 	"hint": "Always paste into jsonlint.com validation page before starting your homebridge, saves a lot of frustration",
-	"accessories": [
-		{
-			"accessory": "DenonAVR",
-			"name": "AVR on Media Player",
-			"ip": "192.168.11.35",
-			"requiredInput": "MPLAY",
-			"pollInputAll": true
-		},
-		{
-			"accessory": "DenonAVR",
-			"name": "AVR on CD",
-			"ip": "192.168.11.35",
-			"requiredInput": "CD"
-		}
-	]
+	"platforms": [{
+		"platform": "DenonAVR",
+		"pollInterval": 3,
+		"devices": [{
+				"name": "Denon Receiver",
+				"ip": "192.168.1.45",
+				"switchInfoMenu": true,
+				"inputs": [{
+						"inputID": "MPLAY",
+						"name": "Apple TV"
+					},
+					{
+						"inputID": "GAME",
+						"name": "iMac"
+					},
+					{
+						"inputID": "TV",
+						"name": "TV"
+					},
+					{
+						"inputID": "AUX1",
+						"name": "AUX"
+					}
+				]
+			},
+			{
+				"name": "Same Receiver other settings",
+				"ip": "192.168.1.45",
+				"switchInfoMenu": false,
+				"inputs": [{
+						"inputID": "AUX1",
+						"name": "AUX"
+					},
+					{
+						"inputID": "GAME",
+						"name": "iMac"
+					},
+					{
+						"inputID": "TV",
+						"name": "TV"
+					},
+					{
+						"inputID": "MPLAY",
+						"name": "Apple TV"
+					}
+				]
+			}
+		],
+		"switches": [{
+				"name": "AVR on Apple TV",
+				"ip": "192.168.1.45",
+				"inputID": "MPLAY",
+				"pollAllInput": false
+			},
+			{
+				"name": "AVR on iMac",
+				"ip": "192.168.1.45",
+				"inputID": "GAME"
+			}
+		]
+
+	}]
 }
