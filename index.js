@@ -90,6 +90,9 @@ class tvClient {
 
 		this.webAPIPort = device.port || 'auto';
 
+		if (this.webAPIPort != 'auto')
+			this.devInfoSet = true;
+
 		this.retrieveDenonInformation();
 		
 		
@@ -130,8 +133,10 @@ class tvClient {
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
+				that.devInfoSet = true;
 				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
-				that.webAPIPort = 8080;
+				if (that.webAPIPort === 'auto')
+					that.webAPIPort = 8080;
 			} else {
 				body = body.replace(/:/g, '');
 				parseString(body, function (err, result) {
@@ -205,8 +210,8 @@ class tvClient {
 				if (this.connected) {
 					if (!this.devInfoSet) 
 						this.retrieveDenonInformation();
-					else 
-						request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
+
+					request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
 				} 
 				callback();
 			});
@@ -360,43 +365,42 @@ class tvClient {
 			this.log.debug('checkReceiverState');	
 		var that = this;
 
-		if (!this.devInfoSet) {
+		if (!this.devInfoSet)
 			this.retrieveDenonInformation();
-		} else {
-			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while getting power state %s", error);
-					that.connected = false;
-				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-				} else {
-					parseString(body, function (err, result) {
-					if(err) {
-						that.log.debug("Error while parsing checkReceiverState. %s", err);
-					}
-					else {		
-						//It is on if it is powered and the correct input is selected.
-						if ( result.item.Power[0].value[0] === 'ON' ) {
-							let inputName = result.item.InputFuncSelect[0].value[0];
-								for (let i = 0; i < that.inputIDs.length; i++) {
-									if (inputName === that.inputIDs[i]) {
-										if (that.inputIDSet === false)
-											that.tvService
-												.getCharacteristic(Characteristic.ActiveIdentifier)
-												.updateValue(i);
-										else 
-											that.inputIDSet = false;	
-									}
-								}
-							that.connected = true;
-						} else {
-							that.connected = false;
-						}
-					}
-					});
+			
+		request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while getting power state %s", error);
+				that.connected = false;
+			} else if (body.indexOf('Error 403: Forbidden') === 0) {
+				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+			} else {
+				parseString(body, function (err, result) {
+				if(err) {
+					that.log.debug("Error while parsing checkReceiverState. %s", err);
 				}
-			});
-		}
+				else {		
+					//It is on if it is powered and the correct input is selected.
+					if ( result.item.Power[0].value[0] === 'ON' ) {
+						let inputName = result.item.InputFuncSelect[0].value[0];
+							for (let i = 0; i < that.inputIDs.length; i++) {
+								if (inputName === that.inputIDs[i]) {
+									if (that.inputIDSet === false)
+										that.tvService
+											.getCharacteristic(Characteristic.ActiveIdentifier)
+											.updateValue(i);
+									else 
+										that.inputIDSet = false;	
+								}
+							}
+						that.connected = true;
+					} else {
+						that.connected = false;
+					}
+				}
+				});
+			}
+		});
 		callback(null, this.connected, this.inputID);
 	}
 
@@ -414,24 +418,23 @@ class tvClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 	
-		if (!this.devInfoSet) {
+		if (!this.devInfoSet)
 			this.retrieveDenonInformation();
-		} else {
-			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while setting power state %s", error);
-					callback(error);
-				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-				} else if(state) {
-					that.connected = true;
-					callback();
-				} else {
-					that.connected = false;
-					callback();
-				}
-			});
-		}
+			
+		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while setting power state %s", error);
+				callback(error);
+			} else if (body.indexOf('Error 403: Forbidden') === 0) {
+				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+			} else if(state) {
+				that.connected = true;
+				callback();
+			} else {
+				that.connected = false;
+				callback();
+			}
+		});
 	}
 
 	setVolume(level, callback) {
@@ -457,17 +460,16 @@ class tvClient {
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
 			
-			if (!this.devInfoSet) {
+			if (!this.devInfoSet)
 				this.retrieveDenonInformation();
-			} else {	
-				request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
-					if(error) {
-						that.log.debug("Error while setting volume: %s", error);
-					} else if (body.indexOf('Error 403: Forbidden') === 0) {
-						that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-					} 
-				});
-			}
+				
+			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
+				if(error) {
+					that.log.debug("Error while setting volume: %s", error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} 
+			});
 		}
 		callback();
 	}
@@ -477,35 +479,34 @@ class tvClient {
 			this.log.debug('getAppSwitchState');
 		if (this.connected) {
 			var that = this;
-			if (!this.devInfoSet) {
+			if (!this.devInfoSet)
 				this.retrieveDenonInformation();
-			} else {
-				request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-					if(error) {
-						that.log.debug("Error while getting power state %s", error);
-					} else if (body.indexOf('Error 403: Forbidden') === 0) {
-						that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-					} else {
-						parseString(body, function (err, result) {
-							if(err) {
-								that.log.debug("Error while parsing getAppSwitchState. %s", err);
-								callback(err);
-							}
-							else {		
-								let inputName = result.item.InputFuncSelect[0].value[0];
-								for (let i = 0; i < that.inputIDs.length; i++) {
-									if (inputName === that.inputIDs[i]) {
-										that.tvService
-											.getCharacteristic(Characteristic.ActiveIdentifier)
-											.updateValue(i);
-									}
+
+			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+				if(error) {
+					that.log.debug("Error while getting power state %s", error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} else {
+					parseString(body, function (err, result) {
+						if(err) {
+							that.log.debug("Error while parsing getAppSwitchState. %s", err);
+							callback(err);
+						}
+						else {		
+							let inputName = result.item.InputFuncSelect[0].value[0];
+							for (let i = 0; i < that.inputIDs.length; i++) {
+								if (inputName === that.inputIDs[i]) {
+									that.tvService
+										.getCharacteristic(Characteristic.ActiveIdentifier)
+										.updateValue(i);
 								}
-								callback();
 							}
-						});
-					}
-				});
-			}
+							callback();
+						}
+					});
+				}
+			});
 		} else {
 			callback();
 		}
@@ -520,23 +521,22 @@ class tvClient {
 			if (state) {
 				var that = this;
 				that.inputIDSet = true;
-				if (!this.devInfoSet) {
+				if (!this.devInfoSet) 
 					this.retrieveDenonInformation();
-				} else {
-					request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
-						if(error) {
-							that.log.debug("Error while switching input %s", error);
-							if (callback)
-								callback(error);
 
-						} else if (body.indexOf('Error 403: Forbidden') === 0) {
-							that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-						} else {
-							if (callback)
-								callback();
-						}
-					});
-				}
+				request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
+						if(error) {
+						that.log.debug("Error while switching input %s", error);
+						if (callback)
+							callback(error);
+
+					} else if (body.indexOf('Error 403: Forbidden') === 0) {
+						that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					} else {
+						if (callback)
+							callback();
+					}
+				});
 			}
 		} else if (callback) {
 			callback();
@@ -586,13 +586,12 @@ class tvClient {
 
 		var that = this;
 		if (this.connected) {
-			if (!this.devInfoSet) {
+			if (!this.devInfoSet)
 				this.retrieveDenonInformation();
-			} else {
-				request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
-				// callback();
-				});
-			}
+			
+			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
+			// callback();
+			});
 		}
 		callback();
 	}
@@ -619,6 +618,9 @@ class legacyClient {
 		this.ip = switches.ip;
 
 		this.webAPIPort = switches.port || 'auto';
+
+		if (this.webAPIPort != 'auto')
+			this.devInfoSet = true;
 
 		this.retrieveDenonInformation();
 
@@ -686,74 +688,73 @@ class legacyClient {
 			this.log.debug('pollForUpdates');
 		var that = this;
 
-		if (!this.devInfoSet) {
+		if (!this.devInfoSet)
 			this.retrieveDenonInformation();
-		} else {
-			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while getting power state %s", error);
-					that.connected = false;
-				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-				} else {
-					parseString(body, function (err, result) {
-						if(err) {
-							that.log.debug("Error while parsing pollForUpdates. %s", err);
-						}
-						else {	
-							// that.log.debug("Got power state to be %s", result.item.Power[0].value[0]);
-							// that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
 
-							//It is on if it is powered and the correct input is selected.
-							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
-								that.connected = true;
-							} else {
-								that.connected = false;
-							}
-							if (that.accessory) {
-									that.accessory
-										.getService(Service.Switch)
-										.getCharacteristic(Characteristic.On)
-										.updateValue(that.connected);
-							}
+		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while getting power state %s", error);
+				that.connected = false;
+			} else if (body.indexOf('Error 403: Forbidden') === 0) {
+				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+			} else {
+				parseString(body, function (err, result) {
+					if(err) {
+						that.log.debug("Error while parsing pollForUpdates. %s", err);
+					}
+					else {	
+						// that.log.debug("Got power state to be %s", result.item.Power[0].value[0]);
+						// that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
+
+						//It is on if it is powered and the correct input is selected.
+						if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
+							that.connected = true;
+						} else {
+							that.connected = false;
 						}
-					});
-				}
-			});
-		}
+						if (that.accessory) {
+								that.accessory
+									.getService(Service.Switch)
+									.getCharacteristic(Characteristic.On)
+									.updateValue(that.connected);
+						}
+					}
+				});
+			}
+		});
 	}
 
 	getPowerStateLeg(callback) {
 		if (traceOn)
 			this.log.debug('getPowerStateLeg');
 		var that = this;
-		if (!this.devInfoSet) {
+
+		if (!this.devInfoSet)
 			this.retrieveDenonInformation();
-		} else {
-			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while getting power state %s", error);
-					that.connected = false;
-				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-				} else {
-					parseString(body, function (err, result) {
-						if(err) {
-							that.log.debug("Error while parsing getPowerStateLeg. %s", err);
+
+		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while getting power state %s", error);
+				that.connected = false;
+			} else if (body.indexOf('Error 403: Forbidden') === 0) {
+				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+			} else {
+				parseString(body, function (err, result) {
+					if(err) {
+						that.log.debug("Error while parsing getPowerStateLeg. %s", err);
+					}
+					else {	
+						//It is on if it is powered and the correct input is selected.
+						if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
+							that.connected = true;
+						} else {
+							that.connected = false;
 						}
-						else {	
-							//It is on if it is powered and the correct input is selected.
-							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
-								that.connected = true;
-							} else {
-								that.connected = false;
-							}
-							callback(null, that.connected);
-						}
-					});
-				}
-			});
-		}
+						callback(null, that.connected);
+					}
+				});
+			}
+		});
 	}
 
 	setPowerStateLeg(state, callback) {
@@ -763,34 +764,33 @@ class legacyClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 	
-		if (!this.devInfoSet) {
+		if (!this.devInfoSet)
 			this.retrieveDenonInformation();
-		} else {
-			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while setting power state %s", error);
-					callback(error);
-				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
-				} else if(state) {
-					/* Switch to correct input if switching on and legacy service */
-						let inputName = that.inputID;
-						inputName = inputName.replace('/', '%2F');
-						request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputID, function(error, response, body) {
-							if(error) {
-								that.log("Error while switching input %s", error);
-								callback(error);
-							} else {
-								that.connected = true;
-								callback();
-							}
-						});
-				} else {
-					that.connected = false;
-					callback();
-				}
-			});
-		}
+		
+		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+			if(error) {
+				that.log.debug("Error while setting power state %s", error);
+				callback(error);
+			} else if (body.indexOf('Error 403: Forbidden') === 0) {
+				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+			} else if(state) {
+				/* Switch to correct input if switching on and legacy service */
+					let inputName = that.inputID;
+					inputName = inputName.replace('/', '%2F');
+					request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputID, function(error, response, body) {
+						if(error) {
+							that.log("Error while switching input %s", error);
+							callback(error);
+						} else {
+							that.connected = true;
+							callback();
+						}
+					});
+			} else {
+				that.connected = false;
+				callback();
+			}
+		});
 	}
 
 	retrieveDenonInformation() {
@@ -800,8 +800,10 @@ class legacyClient {
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
+				that.devInfoSet = true;
 				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
-				that.webAPIPort = 8080;
+				if (that.webAPIPort === 'auto')
+					that.webAPIPort = 8080;
 			} else {
 				body = body.replace(/:/g, '');
 				parseString(body, function (err, result) {
