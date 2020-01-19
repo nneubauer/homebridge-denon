@@ -133,6 +133,7 @@ class tvClient {
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
+				that.devInfoSet = true;
 				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
 				if (that.webAPIPort === 'auto')
 					that.webAPIPort = 8080;
@@ -799,6 +800,7 @@ class legacyClient {
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
+				that.devInfoSet = true;
 				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
 				if (that.webAPIPort === 'auto')
 					that.webAPIPort = 8080;

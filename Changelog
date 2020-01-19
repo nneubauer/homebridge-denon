@@ -3,3 +3,4 @@
 [2.0.2] Fix for wrongfully selecting upper input when changing Volume or using automations. Update in readme.
 [2.0.3] Fix for not recognising input if input has special characters. Update in readme.
 [2.0.4] Fix for auto detect port if not supported by receiver.
+[2.0.5] Removed some error messages.
