@@ -24,7 +24,7 @@
 		"name": "HEOS"
 	},
 	{
-		"inputID": "CBL%2FSAT",
+		"inputID": "CBL/SAT",
 		"name": "Cable/Satellite"
 	},
 	{
@@ -44,7 +44,7 @@
 		"name": "Aux"
 	},
 	{
-		"inputID": "USB%2FIPOD",
+		"inputID": "USB/IPOD",
 		"name": "USB/iPod"
 	},
 	{
@@ -60,7 +60,7 @@
 		"name": "IRadio"
 	},
 	{
-		"inputID": "SAT%2FCBL",
+		"inputID": "SAT/CBL",
 		"name": "Satellite/Cable"
 	},
 	{
@@ -72,7 +72,7 @@
 		"name": " iPod"
 	},
 	{
-		"inputID": "NET%2FUSB",
+		"inputID": "NET/USB",
 		"name": "Network/USB"
 	},
 	{

@@ -54,6 +54,10 @@
 					{
 						"inputID": "MPLAY",
 						"name": "Apple TV"
+					},
+					{
+						"inputID": "SAT/CBL",
+						"name": "Satellite/Cable"
 					}
 				]
 			}
