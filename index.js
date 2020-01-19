@@ -4,6 +4,8 @@ const parseString = require('xml2js').parseString;
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
 
+const infoRetDelay = 500;
+
 let Service;
 let Characteristic;
 let Accessory;
@@ -41,19 +43,16 @@ class denonClient {
 		this.devices = config.devices || [];
 		this.switches = config.switches || [];
 
-
-		/* the services */
-		// this.retrieveDenonInformation();
-
 		// configuration
+		for (var i in this.switches) {
+			this.legacyAccessories.push(new legacyClient(log, this.switches[i], api));
+		}
+
 		for (var i in this.devices) {
 			this.tvAccessories.push(new tvClient(log, this.devices[i], api));
 		}
 
 
-		for (var i in this.switches) {
-			this.legacyAccessories.push(new legacyClient(log, this.switches[i], api));
-		}
 		
 		this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this));
 	}
@@ -61,46 +60,14 @@ class denonClient {
 	configureAccessory(){}
 	removeAccessory(){}
 	didFinishLaunching(){
-
-		this.log.debug('didFinishLaunching');
-		for (var i in this.legacyAccessories) {
-			this.api.registerPlatformAccessories(pluginName, platformName, [this.legacyAccessories[i].returnAccessory()]);
-		}
-	}
-
-	/*****************************************
-	* Start of Setup services
-	****************************************/
-	retrieveDenonInformation() {
-		this.log.debug('retrieveDenonInformation');
-
 		var that = this;
-		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
-			if(error) {
-				that.log.debug("Error while getting power state %s", error);
-			} else {
-				parseString(body, function (err, result) {
-					if(error) {
-						that.log("Error while parsing %s", err);
-					} else {
-						var manufacturer = result.root.device[0].manufacturer[0];
-						var modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
-						var serialNumber = result.root.device[0].serialNumber[0];
-						var firmwareRevision = result.root.device[0].deviceList[0].device[3].firmware_version[0];
-
-						that.log.debug('Manufacturer: %s', manufacturer);
-						that.log.debug('Model: %s', modelName);
-						that.log.debug('Serialnumber: %s', serialNumber);
-						that.log.debug('Firmware: %s', firmwareRevision);
-					}
-				});
+		setTimeout(function () { 
+			that.log.debug('didFinishLaunching');
+			for (var i in that.legacyAccessories) {
+				that.api.registerPlatformAccessories(pluginName, platformName, [that.legacyAccessories[i].returnAccessory()]);
 			}
-		});
+		}, (this.devices.length + 1) * infoRetDelay);
 	}
-	/*****************************************
-	* End of Setup services
-	****************************************/
-
 }
 
 class tvClient {
@@ -109,10 +76,22 @@ class tvClient {
 		this.port = 3000;
 		this.api = api;
 
+		this.devInfoSet = false;
+
+		this.manufacturer = 'Denon';
+		this.modelName = device.model || 'homebridge-denon-heos';
+		this.serialNumber = 'MVV123';
+		this.firmwareRevision = '0.0';
+
 		// configuration
 		this.name = device.name || 'Denon Receiver';
 		this.ip = device.ip;
 
+		this.webAPIPort = device.port || 'auto';
+
+		this.retrieveDenonInformation();
+		
+		
 		// this.volumeControl = device.volumeControlBulb;
 		// if (this.volumeControl === undefined) {
 		// 	this.volumeControl = false;
@@ -138,54 +117,57 @@ class tvClient {
 		this.inputIDSet = false;
 		this.inputIDs = new Array();
 		this.checkAliveInterval = null;
-			
-		this.manufacturer = 'Denon';
-		this.modelName = device.model || 'homebridge-denon-heos';
-		this.serialNumber = 'MVV123';
-		this.firmwareRevision = '0.0';
-
-		this.setupTvService();
 		
-		/* start the polling */
-		if (!this.checkAliveInterval) {
-			this.checkAliveInterval = setInterval(this.checkReceiverState.bind(this, this.updateReceiverStatus.bind(this)), pollingInterval);
-		}
-
-
+		/* Delay to wait for retrieve device info */
+		setTimeout(this.setupTvService.bind(this), infoRetDelay);
 	}
 
-	/*****************************************
-	* Start of Setup services
-	****************************************/
 	retrieveDenonInformation() {
 		this.log.debug('retrieveDenonInformation');
 
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
-				that.log.debug("Error while getting power state %s", error);
+				that.log.debug("Error while getting information of receiver with IP: %s. %s", that.ip, error);
+				that.webAPIPort = 8080;
 			} else {
+				body = body.replace(/:/g, '');
 				parseString(body, function (err, result) {
-					if(error) {
-						that.log("Error while parsing %s", err);
+					if(err) {
+						that.log.debug("Error while parsing retrieveDenonInformation. %s", err);
 					} else {
-						var manufacturer = result.root.device[0].manufacturer[0];
-						var modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
-						var serialNumber = result.root.device[0].serialNumber[0];
-						var firmwareRevision = result.root.device[0].deviceList[0].device[3].firmware_version[0];
+						try {
+							that.manufacturer = result.root.device[0].manufacturer[0];
+							that.modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
+							that.serialNumber = result.root.device[0].serialNumber[0];
+							
+							for (let i = 0; i < result.root.device[0].deviceList[0].device.length; i++){
+								try {
+									that.firmwareRevision = result.root.device[0].deviceList[0].device[i].firmware_version[0];
+									break;
+								} catch (error) {
+									that.log.debug(error);
+								}
+							}
 
-						that.log.debug('Manufacturer: %s', manufacturer);
-						that.log.debug('Model: %s', modelName);
-						that.log.debug('Serialnumber: %s', serialNumber);
-						that.log.debug('Firmware: %s', firmwareRevision);
+							if (that.webAPIPort === 'auto')
+								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
+
+							that.log.debug('Manufacturer: %s', that.manufacturer);
+							that.log.debug('Model: %s', that.modelName);
+							that.log.debug('Serialnumber: %s', that.serialNumber);
+							that.log.debug('Firmware: %s', that.firmwareRevision);
+							that.log.debug('WebAPIPort: %s', that.webAPIPort);
+							that.devInfoSet = true;
+						} catch (error) {
+							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
+							that.log.debug(error);
+						}
 					}
 				});
 			}
 		});
 	}
-	/*****************************************
-	* End of Setup services
-	****************************************/
 
 	/*****************************************
 	 * Start of TV integration service 
@@ -215,7 +197,10 @@ class tvClient {
 			.getCharacteristic(Characteristic.PowerModeSelection)
 			.on('set', (newValue, callback) => {
 				if (this.connected) {
-					request('http://' + this.ip + ':8080/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
+					if (!this.devInfoSet) 
+						this.retrieveDenonInformation();
+					else 
+						request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
 				} 
 				callback();
 			});
@@ -236,6 +221,11 @@ class tvClient {
 
 		this.log.debug('publishExternalAccessories');
 		this.api.publishExternalAccessories(pluginName, [this.tvAccesory]);
+
+		/* start the polling */
+		if (!this.checkAliveInterval) {
+			this.checkAliveInterval = setInterval(this.checkReceiverState.bind(this, this.updateReceiverStatus.bind(this)), pollingInterval);
+		} 
 	}
 
 	setupTvSpeakerService() {
@@ -358,37 +348,43 @@ class tvClient {
 	checkReceiverState(callback) {		
 		var that = this;
 
-		request('http://' + this.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-			if(error) {
-				that.log.debug("Error while getting power state %s", error);
-				that.connected = false;
-			} else {
-				parseString(body, function (err, result) {
+		if (!this.devInfoSet) {
+			this.retrieveDenonInformation();
+		} else {
+			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 				if(error) {
-					that.log.debug("Error while parsing %s", err);
-				}
-				else {		
-					//It is on if it is powered and the correct input is selected.
-					if ( result.item.Power[0].value[0] === 'ON' ) {
-						let inputName = result.item.InputFuncSelect[0].value[0];
-							for (let i = 0; i < that.inputIDs.length; i++) {
-								if (inputName === that.inputIDs[i]) {
-									if (that.inputIDSet === false)
-										that.tvService
-											.getCharacteristic(Characteristic.ActiveIdentifier)
-											.updateValue(i);
-									else 
-										that.inputIDSet = false;	
-								}
-							}
-						that.connected = true;
-					} else {
-						that.connected = false;
+					that.log.debug("Error while getting power state %s", error);
+					that.connected = false;
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} else {
+					parseString(body, function (err, result) {
+					if(err) {
+						that.log.debug("Error while parsing checkReceiverState. %s", err);
 					}
+					else {		
+						//It is on if it is powered and the correct input is selected.
+						if ( result.item.Power[0].value[0] === 'ON' ) {
+							let inputName = result.item.InputFuncSelect[0].value[0];
+								for (let i = 0; i < that.inputIDs.length; i++) {
+									if (inputName === that.inputIDs[i]) {
+										if (that.inputIDSet === false)
+											that.tvService
+												.getCharacteristic(Characteristic.ActiveIdentifier)
+												.updateValue(i);
+										else 
+											that.inputIDSet = false;	
+									}
+								}
+							that.connected = true;
+						} else {
+							that.connected = false;
+						}
+					}
+					});
 				}
-				});
-			}
-		});
+			});
+		}
 		callback(null, this.connected, this.inputID);
 	}
 
@@ -404,31 +400,37 @@ class tvClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 	
-		request('http://' + that.ip + ':8080/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
-			if(error) {
-				that.log.debug("Error while setting power state %s", error);
-				callback(error);
-			} else if(state) {
-				/* Switch to correct input if switching on and legacy service */
-				if (!this.isTvService && that.inputs.length > 0) {
-					request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + that.inputs[0].inputID, function(error, response, body) {
-						if(error) {
-						  	that.log("Error while switching input %s", error);
-						  	callback(error);
-						} else {
-							that.connected = true;
-						  	callback();
-						}
-					});
+		if (!this.devInfoSet) {
+			this.retrieveDenonInformation();
+		} else {
+			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+				if(error) {
+					that.log.debug("Error while setting power state %s", error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} else if(state) {
+					/* Switch to correct input if switching on and legacy service */
+					if (!this.isTvService && that.inputs.length > 0) {
+						request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + that.inputs[0].inputID, function(error, response, body) {
+							if(error) {
+								that.log("Error while switching input %s", error);
+								callback(error);
+							} else {
+								that.connected = true;
+								callback();
+							}
+						});
+					} else {
+						that.connected = true;
+						callback();
+					}
 				} else {
-					that.connected = true;
+					that.connected = false;
 					callback();
 				}
-			} else {
-				that.connected = false;
-				callback();
-			}
-		});
+			});
+		}
 	}
 
 	setVolume(level, callback) {
@@ -447,12 +449,18 @@ class tvClient {
 		var that = this;
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
-	
-			request('http://' + this.ip + ':8080/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while setting volume: %s", error);
-				} 
-			});
+			
+			if (!this.devInfoSet) {
+				this.retrieveDenonInformation();
+			} else {	
+				request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
+					if(error) {
+						that.log.debug("Error while setting volume: %s", error);
+					} else if (body.indexOf('Error 403: Forbidden') === 0) {
+						that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					} 
+				});
+			}
 		}
 		callback();
 	}
@@ -461,29 +469,35 @@ class tvClient {
 		this.log.debug('getAppSwitchState');
 		if (this.connected) {
 			var that = this;
-			request('http://' + this.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-				if(error) {
-					that.log.debug("Error while getting power state %s", error);
-				} else {
-					parseString(body, function (err, result) {
-						if(error) {
-							that.log.debug("Error while parsing %s", err);
-							callback(error);
-						}
-						else {		
-							let inputName = result.item.InputFuncSelect[0].value[0];
-							for (let i = 0; i < that.inputIDs.length; i++) {
-								if (inputName === that.inputIDs[i]) {
-									that.tvService
-										.getCharacteristic(Characteristic.ActiveIdentifier)
-										.updateValue(i);
-								}
+			if (!this.devInfoSet) {
+				this.retrieveDenonInformation();
+			} else {
+				request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+					if(error) {
+						that.log.debug("Error while getting power state %s", error);
+					} else if (body.indexOf('Error 403: Forbidden') === 0) {
+						that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					} else {
+						parseString(body, function (err, result) {
+							if(err) {
+								that.log.debug("Error while parsing getAppSwitchState. %s", err);
+								callback(err);
 							}
-							callback();
-						}
-					});
-				}
-			});
+							else {		
+								let inputName = result.item.InputFuncSelect[0].value[0];
+								for (let i = 0; i < that.inputIDs.length; i++) {
+									if (inputName === that.inputIDs[i]) {
+										that.tvService
+											.getCharacteristic(Characteristic.ActiveIdentifier)
+											.updateValue(i);
+									}
+								}
+								callback();
+							}
+						});
+					}
+				});
+			}
 		} else {
 			callback();
 		}
@@ -495,16 +509,23 @@ class tvClient {
 			if (state) {
 				var that = this;
 				that.inputIDSet = true;
-				request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
-					if(error) {
-						that.log.debug("Error while switching input %s", error);
-						if (callback)
-							callback(error);
-					} else {
-						if (callback)
-							callback();
-					}
-				});
+				if (!this.devInfoSet) {
+					this.retrieveDenonInformation();
+				} else {
+					request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
+						if(error) {
+							that.log.debug("Error while switching input %s", error);
+							if (callback)
+								callback(error);
+
+						} else if (body.indexOf('Error 403: Forbidden') === 0) {
+							that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+						} else {
+							if (callback)
+								callback();
+						}
+					});
+				}
 			}
 		} else if (callback) {
 			callback();
@@ -553,9 +574,13 @@ class tvClient {
 
 		var that = this;
 		if (this.connected) {
-			request('http://' + this.ip + ':8080/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
+			if (!this.devInfoSet) {
+				this.retrieveDenonInformation();
+			} else {
+				request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
 				// callback();
-			});
+				});
+			}
 		}
 		callback();
 	}
@@ -570,9 +595,20 @@ class legacyClient {
 		this.port = 3000;
 		this.api = api;
 
+		this.devInfoSet = false;
+
+		this.manufacturer = 'Denon';
+		this.modelName = switches.model || 'homebridge-denon-heos';
+		this.serialNumber = 'MVV123';
+		this.firmwareRevision = '0.0';
+
 		// configuration
 		this.name = switches.name || 'Denon Input';
 		this.ip = switches.ip;
+
+		this.webAPIPort = switches.port || 'auto';
+
+		this.retrieveDenonInformation();
 
 		this.inputID = switches.inputID;
 
@@ -582,26 +618,20 @@ class legacyClient {
 			
 		this.pollAllInput = switches.pollAllInput || false;
 
-		this.manufacturer = 'Denon';
-		this.modelName = switches.model || 'homebridge-denon-heos';
-		this.serialNumber = 'MVV123';
-		this.firmwareRevision = '0.0';
+		/* Delay to wait for retrieve device info */
+		var uuid = UUIDGen.generate(this.name+this.ip);
 
-		this.setupLegacyService();
+		this.accessory =  new Accessory(this.name, uuid);
+		this.api.unregisterPlatformAccessories(pluginName, platformName, [this.accessory]);
 
-		if (!this.checkAliveInterval) {
-			this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), pollingInterval);
-		}
+		setTimeout(this.setupLegacyService.bind(this), infoRetDelay);
 	}
 
 	/*****************************************
 	 * Start of legacy service 
 	 ****************************************/
 	setupLegacyService() {
-		var uuid = UUIDGen.generate(this.name+this.ip);
-
-		this.accessory =  new Accessory(this.name, uuid);
-		this.api.unregisterPlatformAccessories(pluginName, platformName, [this.accessory]);
+		this.log.debug('setupLegacyService');
 
 		this.accessory.reachable = true;
 		this.accessory.context.model = 'model';
@@ -624,9 +654,10 @@ class legacyClient {
 
 			this.accessory.addService(this.switchService);
 
-
-		this.log.debug('registerPlatformAccessories');
-		// this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+		/* start the polling */
+		if (!this.checkAliveInterval) {
+			this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), pollingInterval);
+		}
 	}
 
 	returnAccessory(){
@@ -639,58 +670,74 @@ class legacyClient {
 	 */
 	pollForUpdates() {
 		var that = this;
-		request('http://' + that.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-			if(error) {
-				// that.log.debug("Error while getting power state %s", error);
-				that.connected = false;
-			} else {
-				parseString(body, function (err, result) {
-					if(error) {
-						// that.log.debug("Error while parsing %s", err);
-					}
-					else {	
-						// that.log.debug("Got power state to be %s", result.item.Power[0].value[0]);
-						// that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
 
-						//It is on if it is powered and the correct input is selected.
-						if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
-							that.connected = true;
-						} else {
-							that.connected = false;
+		if (!this.devInfoSet) {
+			this.retrieveDenonInformation();
+		} else {
+			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+				if(error) {
+					that.log.debug("Error while getting power state %s", error);
+					that.connected = false;
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} else {
+					parseString(body, function (err, result) {
+						if(err) {
+							that.log.debug("Error while parsing pollForUpdates. %s", err);
 						}
-						if (that.accessory) {
-								that.accessory
-									.getService(Service.Switch)
-									.getCharacteristic(Characteristic.On)
-									.updateValue(that.connected);
+						else {	
+							// that.log.debug("Got power state to be %s", result.item.Power[0].value[0]);
+							// that.log.debug("Got input state to be %s", result.item.InputFuncSelect[0].value[0]);
+
+							//It is on if it is powered and the correct input is selected.
+							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
+								that.connected = true;
+							} else {
+								that.connected = false;
+							}
+							if (that.accessory) {
+									that.accessory
+										.getService(Service.Switch)
+										.getCharacteristic(Characteristic.On)
+										.updateValue(that.connected);
+							}
 						}
-					}
-				});
-			}
-		});
+					});
+				}
+			});
+		}
 	}
 
 	getPowerState(callback) {
 		this.log.debug('getPowerState');
 		var that = this;
-		request('http://' + that.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-			if(!error) {
-				parseString(body, function (err, result) {
-					if(error) {
-						// that.log.debug("Error while parsing %s", err);
-					}
-					else {	
-						//It is on if it is powered and the correct input is selected.
-						if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
-							that.connected = true;
-						} else {
-							that.connected = false;
+		if (!this.devInfoSet) {
+			this.retrieveDenonInformation();
+		} else {
+			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+				if(error) {
+					that.log.debug("Error while getting power state %s", error);
+					that.connected = false;
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} else {
+					parseString(body, function (err, result) {
+						if(err) {
+							that.log.debug("Error while parsing getPowerState. %s", err);
 						}
-						callback(null, that.connected);
-					}
-				});
-			}
-		});
+						else {	
+							//It is on if it is powered and the correct input is selected.
+							if (result.item.Power[0].value[0] === 'ON' && (result.item.InputFuncSelect[0].value[0] == that.inputID || that.pollAllInput)) {
+								that.connected = true;
+							} else {
+								that.connected = false;
+							}
+							callback(null, that.connected);
+						}
+					});
+				}
+			});
+		}
 	}
 
 	setPowerState(state, callback) {
@@ -699,24 +746,77 @@ class legacyClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 	
-		request('http://' + that.ip + ':8080/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+		if (!this.devInfoSet) {
+			this.retrieveDenonInformation();
+		} else {
+			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+				if(error) {
+					that.log.debug("Error while setting power state %s", error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				} else if(state) {
+					/* Switch to correct input if switching on and legacy service */
+						request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + that.inputID, function(error, response, body) {
+							if(error) {
+								that.log("Error while switching input %s", error);
+								callback(error);
+							} else {
+								that.connected = true;
+								callback();
+							}
+						});
+				} else {
+					that.connected = false;
+					callback();
+				}
+			});
+		}
+	}
+
+	retrieveDenonInformation() {
+		this.log.debug('retrieveDenonInformation');
+
+		var that = this;
+		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
-				that.log.debug("Error while setting power state %s", error);
-				callback(error);
-			} else if(state) {
-				/* Switch to correct input if switching on and legacy service */
-					request('http://' + that.ip + ':8080/goform/formiPhoneAppDirect.xml?SI' + that.inputID, function(error, response, body) {
-						if(error) {
-						  	that.log("Error while switching input %s", error);
-						  	callback(error);
-						} else {
-							that.connected = true;
-						  	callback();
-						}
-					});
+				that.log.debug("Error while getting information of receiver with IP: %s. %s", that.ip, error);
+				that.webAPIPort = 8080;
 			} else {
-				that.connected = false;
-				callback();
+				body = body.replace(/:/g, '');
+				parseString(body, function (err, result) {
+					if(err) {
+						that.log.debug("Error while parsing retrieveDenonInformation. %s", err);
+					} else {
+						try {
+							that.manufacturer = result.root.device[0].manufacturer[0];
+							that.modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
+							that.serialNumber = result.root.device[0].serialNumber[0];
+							
+							for (let i = 0; i < result.root.device[0].deviceList[0].device.length; i++){
+								try {
+									that.firmwareRevision = result.root.device[0].deviceList[0].device[i].firmware_version[0];
+									break;
+								} catch (error) {
+									that.log.debug(error);
+								}
+							}
+
+							if (that.webAPIPort === 'auto')
+								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
+
+							that.log.debug('Manufacturer: %s', that.manufacturer);
+							that.log.debug('Model: %s', that.modelName);
+							that.log.debug('Serialnumber: %s', that.serialNumber);
+							that.log.debug('Firmware: %s', that.firmwareRevision);
+							that.log.debug('WebAPIPort: %s', that.webAPIPort);
+							that.devInfoSet = true;
+						} catch (error) {
+							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
+							that.log.debug(error);
+						}
+					}
+				});
 			}
 		});
 	}
@@ -724,5 +824,6 @@ class legacyClient {
 	/*****************************************
 	 * End of legacy service 
 	 ****************************************/
+	
 }
 

@@ -6,7 +6,7 @@
 
 ## A Plugin for homebridge to control a Denon AVR
 
-This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver). The plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which was the basis for version 1 of this plugin.
+This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver) and possibly Marantz AVRs (some are tested with positive results). The plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which was the basis for version 1 of this plugin.
 
 Note: I'm not a javascript coder at all, so be easy on code improvements ;).
 
@@ -61,7 +61,7 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. One overall `pollInterval` must be set for all devices and switches. Default is 5. The following examples are given:
 
 ### TV Accessories
-TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's.
+TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones.
 
 ```json
 {
@@ -72,6 +72,7 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
 			"name": "Denon Receiver",
 			"ip": "192.168.1.45",
 			"switchInfoMenu": true,
+			"port": 8080,
 			"inputs": [{
 				"inputID": "MPLAY",
 				"name": "Apple TV"
@@ -94,7 +95,7 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
 ```
 
 ### Switches
-Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false.
+Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones.
 ```json
 {
 	"platforms": [{
@@ -103,6 +104,7 @@ Set `pollAllInput` to true if you want a main switch to turn of the receiver no 
 		"switches": [{
 			"name": "AVR on Apple TV",
 			"ip": "192.168.1.45",
+			"port": 8080,
 			"inputID": "MPLAY",
 			"pollAllInput": false
 		},
@@ -130,4 +132,6 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 ## Bugs
 
-No known bugs.
+* ~~API port is working with older version of denon receivers.~~
+* Wrong input is selected when turning on the device with automations.
+* Special characters in inputID not working.

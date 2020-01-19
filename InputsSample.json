@@ -1,98 +1,102 @@
 "inputs": [
 	{
-		"appId": "MPLAY",
+		"inputID": "MPLAY",
 		"name": "MPLAY"
 	},
 	{
-		"appId": "GAME",
+		"inputID": "GAME",
 		"name": "Game"
 	},
 	{
-		"appId": "TV",
+		"inputID": "TV",
 		"name": "TV"
 	},
 	{
-		"appId": "CD",
+		"inputID": "CD",
 		"name": "CD"
 	},
 	{
-		"appId": "SPOTIFY",
+		"inputID": "SPOTIFY",
 		"name": "Spotify"
 	},
 	{
-		"appId": "CBL%2FSAT",
+		"inputID": "NET",
+		"name": "HEOS"
+	},
+	{
+		"inputID": "CBL%2FSAT",
 		"name": "Cable/Satellite"
 	},
 	{
-		"appId": "DVD",
+		"inputID": "DVD",
 		"name": "DVD"
 	},
 	{
-		"appId": "BD",
+		"inputID": "BD",
 		"name": "Blu-Ray"
 	},
 	{
-		"appId": "GAME2",
+		"inputID": "GAME2",
 		"name": "Game 2"
 	},
 	{
-		"appId": "AUX1",
+		"inputID": "AUX1",
 		"name": "Aux"
 	},
 	{
-		"appId": "USB%2FIPOD",
+		"inputID": "USB%2FIPOD",
 		"name": "USB/iPod"
 	},
 	{
-		"appId": "TUNER",
+		"inputID": "TUNER",
 		"name": "Tuner"
 	},
 	{
-		"appId": "NETWORK",
+		"inputID": "NETWORK",
 		"name": "Network"
 	},
 	{
-		"appId": "IRADIO",
+		"inputID": "IRADIO",
 		"name": "IRadio"
 	},
 	{
-		"appId": "SAT%2FCBL",
+		"inputID": "SAT%2FCBL",
 		"name": "Satellite/Cable"
 	},
 	{
-		"appId": "DOCK",
+		"inputID": "DOCK",
 		"name": "Dock"
 	},
 	{
-		"appId": "IPOD",
+		"inputID": "IPOD",
 		"name": " iPod"
 	},
 	{
-		"appId": "NET%2FUSB",
+		"inputID": "NET%2FUSB",
 		"name": "Network/USB"
 	},
 	{
-		"appId": "RHAPSODY",
+		"inputID": "RHAPSODY",
 		"name": "Rhapsody"
 	},
 	{
-		"appId": "PANDORA",
+		"inputID": "PANDORA",
 		"name": "Pandora"
 	},
 	{
-		"appId": "LASTFM",
+		"inputID": "LASTFM",
 		"name": "LastFM"
 	},
 	{
-		"appId": "IRP",
+		"inputID": "IRP",
 		"name": " IRP"
 	},
 	{
-		"appId": "FAVORITES",
+		"inputID": "FAVORITES",
 		"name": "Favorites"
 	},
 	{
-		"appId": "SERVER",
+		"inputID": "SERVER",
 		"name": "Server"
 	}
 ]
