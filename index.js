@@ -4,7 +4,7 @@ const parseString = require('xml2js').parseString;
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
 
-const infoRetDelay = 500;
+const infoRetDelay = 1000;
 
 let Service;
 let Characteristic;
@@ -146,18 +146,20 @@ class tvClient {
 									that.firmwareRevision = result.root.device[0].deviceList[0].device[i].firmware_version[0];
 									break;
 								} catch (error) {
-									that.log.debug(error);
+									// that.log.debug(error);
 								}
 							}
 
 							if (that.webAPIPort === 'auto')
 								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
 
-							that.log.debug('Manufacturer: %s', that.manufacturer);
-							that.log.debug('Model: %s', that.modelName);
-							that.log.debug('Serialnumber: %s', that.serialNumber);
-							that.log.debug('Firmware: %s', that.firmwareRevision);
-							that.log.debug('WebAPIPort: %s', that.webAPIPort);
+							that.log('----------TV Service----------');
+							that.log('Manufacturer: %s', that.manufacturer);
+							that.log('Model: %s', that.modelName);
+							that.log('Serialnumber: %s', that.serialNumber);
+							that.log('Firmware: %s', that.firmwareRevision);
+							that.log('WebAPIPort: %s', that.webAPIPort);
+							that.log('------------------------------');
 							that.devInfoSet = true;
 						} catch (error) {
 							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
@@ -798,18 +800,20 @@ class legacyClient {
 									that.firmwareRevision = result.root.device[0].deviceList[0].device[i].firmware_version[0];
 									break;
 								} catch (error) {
-									that.log.debug(error);
+									// that.log.debug(error);
 								}
 							}
 
 							if (that.webAPIPort === 'auto')
 								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
 
-							that.log.debug('Manufacturer: %s', that.manufacturer);
-							that.log.debug('Model: %s', that.modelName);
-							that.log.debug('Serialnumber: %s', that.serialNumber);
-							that.log.debug('Firmware: %s', that.firmwareRevision);
-							that.log.debug('WebAPIPort: %s', that.webAPIPort);
+							that.log('--------Legacy Service--------');
+							that.log('Manufacturer: %s', that.manufacturer);
+							that.log('Model: %s', that.modelName);
+							that.log('Serialnumber: %s', that.serialNumber);
+							that.log('Firmware: %s', that.firmwareRevision);
+							that.log('WebAPIPort: %s', that.webAPIPort);
+							that.log('------------------------------');
 							that.devInfoSet = true;
 						} catch (error) {
 							that.log.debug('Receiver with IP %s not yet ready.', that.ip);

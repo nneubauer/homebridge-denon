@@ -1,0 +1,2 @@
+[2.0.0] Initial release.
+[2.0.1] Correct API port for older receivers. Auto detect and manual support.
