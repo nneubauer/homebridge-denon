@@ -19,6 +19,12 @@ The plugin registers as [homebridge-denon-heos](https://www.npmjs.com/package/ho
 (sudo) npm install -g homebridge-denon-heos
 ```
 
+For a specific version number use (change the number after the `@` to the desired version):
+```
+(sudo) npm install -g homebridge-denon-heos@2.0.0
+```
+The changelog of the version can be found in the the git.
+
 ## Idea
 
 Since there is no HomeKit AVR accessory type, [nneubauers](https://github.com/nneubauer) idea was to create bunch of switches. Each switch signifies an input source which I forked to a version I use now for over a year without any problems. Now with the TV accessories in Homekit, I wanted to make it possible to control my receiver with a TV accessory block and the control widget.
@@ -133,5 +139,5 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 ## Bugs
 
 * ~~API port is working with older version of denon receivers.~~
-* Wrong input is selected when turning on the device with automations.
+* ~~Wrong input is selected when turning on the device with automations.~~
 * Special characters in inputID not working.
