@@ -777,7 +777,7 @@ class legacyClient {
 				/* Switch to correct input if switching on and legacy service */
 					let inputName = that.inputID;
 					inputName = inputName.replace('/', '%2F');
-					request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputID, function(error, response, body) {
+					request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 						if(error) {
 							that.log("Error while switching input %s", error);
 							callback(error);
