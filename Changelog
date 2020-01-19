@@ -1,3 +1,4 @@
 [2.0.0] Initial release.
-[2.0.1] Correct API port for older receivers. Auto detect and manual support.
-[2.0.2] Fix for wrongfully selecting upper input when changing Volume or using automations.
+[2.0.1] Correct API port for older receivers. Auto detect and manual support. Extract info from AVR and add it to the homebridge device information. Update in readme.
+[2.0.2] Fix for wrongfully selecting upper input when changing Volume or using automations. Update in readme.
+[2.0.3] Fix for not recognising input if input has special characters. Update in readme.

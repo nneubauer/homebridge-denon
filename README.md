@@ -67,62 +67,91 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. One overall `pollInterval` must be set for all devices and switches. Default is 5. The following examples are given:
 
 ### TV Accessories
-TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones.
+TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
 
 ```json
 {
-	"platforms": [{
-		"platform": "DenonAVR",
-		"pollInterval": 3,
-		"devices": [{
-			"name": "Denon Receiver",
-			"ip": "192.168.1.45",
-			"switchInfoMenu": true,
-			"port": 8080,
-			"inputs": [{
-				"inputID": "MPLAY",
-				"name": "Apple TV"
-			},
-			{
-				"inputID": "GAME",
-				"name": "iMac"
-			},
-			{
-				"inputID": "TV",
-				"name": "TV"
-			},
-			{
-				"inputID": "AUX1",
-				"name": "AUX"
-			}]
-		}]
-	}]
+    "platforms": [{
+        "platform": "DenonAVR",
+        "pollInterval": 3,
+        "devices": [{
+            "name": "Denon Receiver",
+            "ip": "192.168.1.45",
+            "switchInfoMenu": true,
+            "port": 8080,
+            "inputs": [{
+                "inputID": "MPLAY",
+                "name": "Apple TV"
+            },
+            {
+                "inputID": "GAME",
+                "name": "iMac"
+            },
+            {
+                "inputID": "TV",
+                "name": "TV"
+            },
+            {
+                "inputID": "AUX1",
+                "name": "AUX"
+            }]
+        }]
+    }]
 }
 ```
 
 ### Switches
-Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones.
+Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
 ```json
 {
-	"platforms": [{
-		"platform": "DenonAVR",
-		"pollInterval": 3,
-		"switches": [{
-			"name": "AVR on Apple TV",
-			"ip": "192.168.1.45",
-			"port": 8080,
-			"inputID": "MPLAY",
-			"pollAllInput": false
-		},
-		{
-			"name": "AVR on iMac",
-			"ip": "192.168.1.45",
-			"inputID": "GAME"
-		}]
-	}]
+    "platforms": [{
+        "platform": "DenonAVR",
+        "pollInterval": 3,
+        "switches": [{
+            "name": "AVR on Apple TV",
+            "ip": "192.168.1.45",
+            "port": 8080,
+            "inputID": "MPLAY",
+            "pollAllInput": false
+        },
+        {
+            "name": "AVR on iMac",
+            "ip": "192.168.1.45",
+            "inputID": "GAME"
+        }]
+    }]
 }
 ```
 
+### Choosing the correct inputIDs
+If you are not sure what the name of the inputID is that you are using, you can use the following links to check what the current source inputID is. You need to change the ip address to your receivers IP and than paste it in your browser. `http://192.168.1.45:8080/goform/formMainZone_MainZoneXmlStatusLite.xml` or `http://192.168.1.45:80/goform/formMainZone_MainZoneXmlStatusLite.xml` in case of older AVR's. The result will look like the following:
+```xml
+<item>
+  <Power>
+    <value>ON</value>
+  </Power>
+  <InputFuncSelect>
+    <value>SAT/CBL</value>
+  </InputFuncSelect>
+  <VolumeDisplay>
+    <value>Absolute</value>
+  </VolumeDisplay>
+  <MasterVolume>
+    <value>-50.0</value>
+  </MasterVolume>
+  <Mute>
+    <value>off</value>
+  </Mute>
+</item>
+```
+You can see that it is currently on `SAT/CBL`. This means that you need as input (`"name"` is something you can change to something personal): 
+
+```json
+{
+    "inputID": "SAT/CBL",
+    "name": "Satellite/Cable"
+}
+```
 
 ## Further Reading and Thanks
 
@@ -140,4 +169,5 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 * ~~API port is working with older version of denon receivers.~~
 * ~~Wrong input is selected when turning on the device with automations.~~
-* Special characters in inputID not working.
+* ~~Wrong input is selected when changing volume.~~
+* ~~Special characters in inputID not working.~~

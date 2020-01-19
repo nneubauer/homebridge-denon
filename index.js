@@ -5,6 +5,7 @@ const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
 
 const infoRetDelay = 1000;
+const traceOn = false;
 
 let Service;
 let Characteristic;
@@ -123,12 +124,13 @@ class tvClient {
 	}
 
 	retrieveDenonInformation() {
-		this.log.debug('retrieveDenonInformation');
+		if (traceOn)
+			this.log.debug('retrieveDenonInformation');
 
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
-				that.log.debug("Error while getting information of receiver with IP: %s. %s", that.ip, error);
+				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
 				that.webAPIPort = 8080;
 			} else {
 				body = body.replace(/:/g, '');
@@ -158,7 +160,7 @@ class tvClient {
 							that.log('Model: %s', that.modelName);
 							that.log('Serialnumber: %s', that.serialNumber);
 							that.log('Firmware: %s', that.firmwareRevision);
-							that.log('WebAPIPort: %s', that.webAPIPort);
+							that.log('Port: %s', that.webAPIPort);
 							that.log('------------------------------');
 							that.devInfoSet = true;
 						} catch (error) {
@@ -175,7 +177,8 @@ class tvClient {
 	 * Start of TV integration service 
 	 ****************************************/
 	setupTvService() {
-		this.log.debug('setupTvService');
+		if (traceOn)
+			this.log.debug('setupTvService');
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
 		this.tvService = new Service.Television(this.name, 'tvService');
@@ -232,7 +235,8 @@ class tvClient {
 	}
 
 	setupTvSpeakerService() {
-		this.log.debug('setupTvSpeakerService');
+		if (traceOn)
+			this.log.debug('setupTvSpeakerService');
 		this.tvSpeakerService = new Service.TelevisionSpeaker(this.name + ' Volume', 'tvSpeakerService');
 		this.tvSpeakerService
 			.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
@@ -249,7 +253,8 @@ class tvClient {
 	}
 
 	setupInputSourcesService() {
-		this.log.debug('setupInputSourcesService');
+		if (traceOn)
+			this.log.debug('setupInputSourcesService');
 		if (this.inputs === undefined || this.inputs === null || this.inputs.length <= 0) {
 			return;
 		}
@@ -316,7 +321,8 @@ class tvClient {
 	 * Start of helper methods
 	 ****************************************/
 	updateReceiverStatus(error, tvStatus, inputID) {
-		this.log.debug('updateReceiverStatus');
+		if (traceOn)
+			this.log.debug('updateReceiverStatus');
 		if (!tvStatus) {
 			if (this.powerService) 
 				this.powerService
@@ -350,7 +356,8 @@ class tvClient {
 	 * Start of Homebridge Setters/Getters
 	 ****************************************/
 	checkReceiverState(callback) {	
-		this.log.debug('checkReceiverState');	
+		if (traceOn)
+			this.log.debug('checkReceiverState');	
 		var that = this;
 
 		if (!this.devInfoSet) {
@@ -361,7 +368,7 @@ class tvClient {
 					that.log.debug("Error while getting power state %s", error);
 					that.connected = false;
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 				} else {
 					parseString(body, function (err, result) {
 					if(err) {
@@ -395,12 +402,14 @@ class tvClient {
 
 
 	getPowerState(callback) {
-		this.log.debug('getPowerState');
+		if (traceOn)
+			this.log.debug('getPowerState');
 		callback(null, this.connected);
 	}
 
 	setPowerState(state, callback) {
-		this.log.debug('setPowerState state: %s', state ? 'On' : 'Off');
+		if (traceOn)
+			this.log.debug('setPowerState state: %s', state ? 'On' : 'Off');
 		var that = this;
 	
 		var stateString = (state ? 'On' : 'Standby');
@@ -413,7 +422,7 @@ class tvClient {
 					that.log.debug("Error while setting power state %s", error);
 					callback(error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 				} else if(state) {
 					that.connected = true;
 					callback();
@@ -426,7 +435,8 @@ class tvClient {
 	}
 
 	setVolume(level, callback) {
-		this.log.debug('setVolume');	
+		if (traceOn)
+			this.log.debug('setVolume');	
 		if (this.connected) {
 			callback();
 		} else {
@@ -435,12 +445,14 @@ class tvClient {
 	}
 
 	getVolumeSwitch(callback) {
-		this.log.debug('getVolumeSwitch');
+		if (traceOn)
+			this.log.debug('getVolumeSwitch');
 		callback(null, false);
 	}
 
 	setVolumeSwitch(state, callback, isUp) {
-		this.log.debug('setVolumeSwitch');
+		if (traceOn)
+			this.log.debug('setVolumeSwitch');
 		var that = this;
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
@@ -452,7 +464,7 @@ class tvClient {
 					if(error) {
 						that.log.debug("Error while setting volume: %s", error);
 					} else if (body.indexOf('Error 403: Forbidden') === 0) {
-						that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+						that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 					} 
 				});
 			}
@@ -461,7 +473,8 @@ class tvClient {
 	}
 
 	getAppSwitchState(callback) {
-		this.log.debug('getAppSwitchState');
+		if (traceOn)
+			this.log.debug('getAppSwitchState');
 		if (this.connected) {
 			var that = this;
 			if (!this.devInfoSet) {
@@ -471,7 +484,7 @@ class tvClient {
 					if(error) {
 						that.log.debug("Error while getting power state %s", error);
 					} else if (body.indexOf('Error 403: Forbidden') === 0) {
-						that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+						that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 					} else {
 						parseString(body, function (err, result) {
 							if(err) {
@@ -499,7 +512,10 @@ class tvClient {
 	}
 
 	setAppSwitchState(state, callback, inputName) {
-		this.log.debug('setAppSwitchState');
+		inputName = inputName.replace('/', '%2F');
+		
+		if (traceOn)
+			this.log.debug('setAppSwitchState');
 		if (this.connected) {
 			if (state) {
 				var that = this;
@@ -514,7 +530,7 @@ class tvClient {
 								callback(error);
 
 						} else if (body.indexOf('Error 403: Forbidden') === 0) {
-							that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+							that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 						} else {
 							if (callback)
 								callback();
@@ -528,7 +544,8 @@ class tvClient {
 	}
 
 	remoteKeyPress(remoteKey, callback) {
-		this.log.debug('Denon - remote key pressed: %d', remoteKey);
+		if (traceOn)
+			this.log.debug('Denon - remote key pressed: %d', remoteKey);
 		var ctrlString = '';
 
 		switch (remoteKey) {
@@ -626,7 +643,8 @@ class legacyClient {
 	 * Start of legacy service 
 	 ****************************************/
 	setupLegacyService() {
-		this.log.debug('setupLegacyService');
+		if (traceOn)
+			this.log.debug('setupLegacyService');
 
 		this.accessory.reachable = true;
 		this.accessory.context.model = 'model';
@@ -664,7 +682,8 @@ class legacyClient {
 	 * the on characteristic periodically.
 	 */
 	pollForUpdates() {
-		this.log.debug('pollForUpdates');
+		if (traceOn)
+			this.log.debug('pollForUpdates');
 		var that = this;
 
 		if (!this.devInfoSet) {
@@ -675,7 +694,7 @@ class legacyClient {
 					that.log.debug("Error while getting power state %s", error);
 					that.connected = false;
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 				} else {
 					parseString(body, function (err, result) {
 						if(err) {
@@ -705,7 +724,8 @@ class legacyClient {
 	}
 
 	getPowerStateLeg(callback) {
-		this.log.debug('getPowerStateLeg');
+		if (traceOn)
+			this.log.debug('getPowerStateLeg');
 		var that = this;
 		if (!this.devInfoSet) {
 			this.retrieveDenonInformation();
@@ -715,7 +735,7 @@ class legacyClient {
 					that.log.debug("Error while getting power state %s", error);
 					that.connected = false;
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 				} else {
 					parseString(body, function (err, result) {
 						if(err) {
@@ -737,7 +757,8 @@ class legacyClient {
 	}
 
 	setPowerStateLeg(state, callback) {
-		this.log.debug('setPowerStateLeg state: %s', state ? 'On' : 'Off');
+		if (traceOn)
+			this.log.debug('setPowerStateLeg state: %s', state ? 'On' : 'Off');
 		var that = this;
 	
 		var stateString = (state ? 'On' : 'Standby');
@@ -750,10 +771,12 @@ class legacyClient {
 					that.log.debug("Error while setting power state %s", error);
 					callback(error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 				} else if(state) {
 					/* Switch to correct input if switching on and legacy service */
-						request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + that.inputID, function(error, response, body) {
+						let inputName = that.inputID;
+						inputName = inputName.replace('/', '%2F');
+						request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputID, function(error, response, body) {
 							if(error) {
 								that.log("Error while switching input %s", error);
 								callback(error);
@@ -771,12 +794,13 @@ class legacyClient {
 	}
 
 	retrieveDenonInformation() {
-		this.log.debug('retrieveDenonInformation');
+		if (traceOn)
+			this.log.debug('retrieveDenonInformation');
 
 		var that = this;
 		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
 			if(error) {
-				that.log.debug("Error while getting information of receiver with IP: %s. %s", that.ip, error);
+				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
 				that.webAPIPort = 8080;
 			} else {
 				body = body.replace(/:/g, '');
@@ -806,7 +830,7 @@ class legacyClient {
 							that.log('Model: %s', that.modelName);
 							that.log('Serialnumber: %s', that.serialNumber);
 							that.log('Firmware: %s', that.firmwareRevision);
-							that.log('WebAPIPort: %s', that.webAPIPort);
+							that.log('Port: %s', that.webAPIPort);
 							that.log('------------------------------');
 							that.devInfoSet = true;
 						} catch (error) {
