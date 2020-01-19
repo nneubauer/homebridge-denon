@@ -4,7 +4,7 @@ const parseString = require('xml2js').parseString;
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
 
-const infoRetDelay = 500;
+const infoRetDelay = 1000;
 
 let Service;
 let Characteristic;
@@ -153,11 +153,13 @@ class tvClient {
 							if (that.webAPIPort === 'auto')
 								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
 
-							that.log.debug('Manufacturer: %s', that.manufacturer);
-							that.log.debug('Model: %s', that.modelName);
-							that.log.debug('Serialnumber: %s', that.serialNumber);
-							that.log.debug('Firmware: %s', that.firmwareRevision);
-							that.log.debug('WebAPIPort: %s', that.webAPIPort);
+							that.log('----------TV Service----------');
+							that.log('Manufacturer: %s', that.manufacturer);
+							that.log('Model: %s', that.modelName);
+							that.log('Serialnumber: %s', that.serialNumber);
+							that.log('Firmware: %s', that.firmwareRevision);
+							that.log('WebAPIPort: %s', that.webAPIPort);
+							that.log('------------------------------');
 							that.devInfoSet = true;
 						} catch (error) {
 							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
@@ -173,6 +175,7 @@ class tvClient {
 	 * Start of TV integration service 
 	 ****************************************/
 	setupTvService() {
+		this.log.debug('setupTvService');
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
 		this.tvService = new Service.Television(this.name, 'tvService');
@@ -313,6 +316,7 @@ class tvClient {
 	 * Start of helper methods
 	 ****************************************/
 	updateReceiverStatus(error, tvStatus, inputID) {
+		this.log.debug('updateReceiverStatus');
 		if (!tvStatus) {
 			if (this.powerService) 
 				this.powerService
@@ -345,7 +349,8 @@ class tvClient {
  	/*****************************************
 	 * Start of Homebridge Setters/Getters
 	 ****************************************/
-	checkReceiverState(callback) {		
+	checkReceiverState(callback) {	
+		this.log.debug('checkReceiverState');	
 		var that = this;
 
 		if (!this.devInfoSet) {
@@ -410,21 +415,8 @@ class tvClient {
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					that.log('Can not acces receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
 				} else if(state) {
-					/* Switch to correct input if switching on and legacy service */
-					if (!this.isTvService && that.inputs.length > 0) {
-						request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + that.inputs[0].inputID, function(error, response, body) {
-							if(error) {
-								that.log("Error while switching input %s", error);
-								callback(error);
-							} else {
-								that.connected = true;
-								callback();
-							}
-						});
-					} else {
-						that.connected = true;
-						callback();
-					}
+					that.connected = true;
+					callback();
 				} else {
 					that.connected = false;
 					callback();
@@ -434,6 +426,7 @@ class tvClient {
 	}
 
 	setVolume(level, callback) {
+		this.log.debug('setVolume');	
 		if (this.connected) {
 			callback();
 		} else {
@@ -442,10 +435,12 @@ class tvClient {
 	}
 
 	getVolumeSwitch(callback) {
+		this.log.debug('getVolumeSwitch');
 		callback(null, false);
 	}
 
 	setVolumeSwitch(state, callback, isUp) {
+		this.log.debug('setVolumeSwitch');
 		var that = this;
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
@@ -642,8 +637,8 @@ class legacyClient {
 		this.switchService = new Service.Switch(this.name, 'legacyInput');
 		this.switchService
 			.getCharacteristic(Characteristic.On)
-			.on('get', this.getPowerState.bind(this))
-			.on('set', this.setPowerState.bind(this));
+			.on('get', this.getPowerStateLeg.bind(this))
+			.on('set', this.setPowerStateLeg.bind(this));
 
 		this.accessory
 			.getService(Service.AccessoryInformation)
@@ -669,6 +664,7 @@ class legacyClient {
 	 * the on characteristic periodically.
 	 */
 	pollForUpdates() {
+		this.log.debug('pollForUpdates');
 		var that = this;
 
 		if (!this.devInfoSet) {
@@ -708,8 +704,8 @@ class legacyClient {
 		}
 	}
 
-	getPowerState(callback) {
-		this.log.debug('getPowerState');
+	getPowerStateLeg(callback) {
+		this.log.debug('getPowerStateLeg');
 		var that = this;
 		if (!this.devInfoSet) {
 			this.retrieveDenonInformation();
@@ -723,7 +719,7 @@ class legacyClient {
 				} else {
 					parseString(body, function (err, result) {
 						if(err) {
-							that.log.debug("Error while parsing getPowerState. %s", err);
+							that.log.debug("Error while parsing getPowerStateLeg. %s", err);
 						}
 						else {	
 							//It is on if it is powered and the correct input is selected.
@@ -740,8 +736,8 @@ class legacyClient {
 		}
 	}
 
-	setPowerState(state, callback) {
-		this.log.debug('setPowerState state: %s', state ? 'On' : 'Off');
+	setPowerStateLeg(state, callback) {
+		this.log.debug('setPowerStateLeg state: %s', state ? 'On' : 'Off');
 		var that = this;
 	
 		var stateString = (state ? 'On' : 'Standby');
@@ -805,11 +801,13 @@ class legacyClient {
 							if (that.webAPIPort === 'auto')
 								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
 
-							that.log.debug('Manufacturer: %s', that.manufacturer);
-							that.log.debug('Model: %s', that.modelName);
-							that.log.debug('Serialnumber: %s', that.serialNumber);
-							that.log.debug('Firmware: %s', that.firmwareRevision);
-							that.log.debug('WebAPIPort: %s', that.webAPIPort);
+							that.log('--------Legacy Service--------');
+							that.log('Manufacturer: %s', that.manufacturer);
+							that.log('Model: %s', that.modelName);
+							that.log('Serialnumber: %s', that.serialNumber);
+							that.log('Firmware: %s', that.firmwareRevision);
+							that.log('WebAPIPort: %s', that.webAPIPort);
+							that.log('------------------------------');
 							that.devInfoSet = true;
 						} catch (error) {
 							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
