@@ -153,6 +153,16 @@ You can see that it is currently on `SAT/CBL`. This means that you need as input
 }
 ```
 
+## Possible errors
+The following errors can be expected:
+* `Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.`
+It is possible that the the software was not able to extract the correct port from the available receivers. Make sure to connect the receivers to the network when (re)starting homebridge. If this doesn't fix the problem, try to set a manual port. 80 is for non-Heos models and 8080 is for Heos models.
+
+* `No Denon receiver with IP: xx.xx.xx.xx found in network. Check Denon network status or try setting a manual port.`
+The specified receiver is not found in the network with the auto-discover function. This means that the auto port set will not work and the device information can not be set in homebridge. If you can control your device, you can ignore this warning. If the plugin is not working. You can try to set a manual port and check if the plugin is working in the home app. Otherwise try checking the network connection of the receiver.
+
+
+
 ## Further Reading and Thanks
 
 Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version that worked with newer Denon models like my AVR x1400. Also thanks to Jer G who took the time to inform me on the volume control of Denon receivers and input settings with special characters.
