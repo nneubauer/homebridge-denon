@@ -9,7 +9,7 @@ const platformName = 'DenonAVR';
 
 const infoRetDelay = 250;
 const defaultTrace = true;
-const autoDiscoverTime = 3000;
+const autoDiscoverTime = 5000;
 
 let Service;
 let Characteristic;
