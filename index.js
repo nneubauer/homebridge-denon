@@ -1,5 +1,7 @@
 const request = require('request');
 const parseString = require('xml2js').parseString;
+const ssdp = require('node-ssdp').Client
+  , client = new ssdp({})
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
@@ -17,6 +19,8 @@ var pollingInterval;
 var infoMenu = 'MNINF';
 var settingsMenu = 'MNMEN ON';
 
+var foundReceivers = [];
+
 module.exports = homebridge => {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
@@ -25,6 +29,66 @@ module.exports = homebridge => {
 
 	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
+
+function getIndexIP(ipAddr) {
+	for (var i in foundReceivers) {
+		if (foundReceivers[i].indexOf(ipAddr) != -1)
+			return i;
+	}
+	return -1;
+}
+
+function getInfoAddress(ipAddr) {
+	for (var i in foundReceivers) {
+		if (foundReceivers[i][0].indexOf(ipAddr) != -1)
+			return foundReceivers[i][1];
+	}
+	return null;
+}
+
+function retrieveDenonInformation(ipAddr, log) {
+	var index = getIndexIP(ipAddr);
+	request(getInfoAddress(ipAddr), function(error, response, body) {
+		if(error) {
+			that.log.debug("Error while getting information of receiver with IP: %s. %s", foundReceivers[index][0], error);
+		} else {
+			body = body.replace(/:/g, '');
+			parseString(body, function (err, result) {
+				if(err) {
+					log.debug("Error while parsing retrieveDenonInformation. %s", err);
+				} else {
+					try {
+						foundReceivers[index][3] = result.root.device[0].manufacturer[0];
+						foundReceivers[index][4] = (' ' + result.root.device[0].modelName[0]).slice(1);
+						foundReceivers[index][5] = result.root.device[0].serialNumber[0];
+						foundReceivers[index][2] = result.root.device[0].DMHX_WebAPIPort[0];
+						
+						for (let i = 0; i < result.root.device[0].deviceList[0].device.length; i++){
+							try {
+								foundReceivers[index][6] = result.root.device[0].deviceList[0].device[i].firmware_version[0];
+								break;
+							} catch (error) {
+								// log.debug(error);
+							}
+						}
+
+						log('------------------------------');
+						log('IP Address: %s', foundReceivers[index][0]);
+						log('Manufacturer: %s', foundReceivers[index][3]);
+						log('Model: %s', foundReceivers[index][4]);
+						log('Serialnumber: %s', foundReceivers[index][5]);
+						log('Firmware: %s', foundReceivers[index][6]);
+						log('Port: %s', foundReceivers[index][2]);
+						log('------------------------------');
+					} catch (error) {
+						log.debug('Receiver with IP %s not yet ready.', foundReceivers[index][0]);
+						log.debug(error);
+					}
+				}
+			});
+		}
+	});
+}
 
 
 class denonClient {
@@ -35,6 +99,41 @@ class denonClient {
 
 		this.tvAccessories = [];
 		this.legacyAccessories = [];
+
+
+		/* Search for all available Denon receivers */
+		var that = this;
+		client.on('notify', function () {
+			that.log.error('Got a notification.')
+		})
+		  
+		client.on('response', function inResponse(headers, code, rinfo) {
+			let stringData = JSON.stringify(headers, null, '  ');
+			if (stringData.match(/(d|D)enon/)) {
+				let parseData = stringData.match(/"LOCATION": (.*?)(\d+\.\d+\.\d+\.\d+)(.*)/);
+				let temp = parseData[0].split(/"/);
+
+				let ipAddr = temp[3].replace("http://","");
+				let colon = ipAddr.indexOf(":");
+				ipAddr = ipAddr.substring(0,colon);
+
+				let receiver = [];
+
+				receiver.push(ipAddr);
+				receiver.push(temp[3]);
+				if (getIndexIP(ipAddr) == -1)
+				{
+					foundReceivers.push(receiver);
+					retrieveDenonInformation(ipAddr,that.log);
+					that.log.debug(foundReceivers);
+				}
+			}
+		})
+		client.search('upnp:rootdevice')
+		
+
+
+
 
 		this.pollingInterval = config.pollInterval || 5;
 		this.pollingInterval = this.pollingInterval * 1000;
@@ -72,7 +171,7 @@ class denonClient {
 }
 
 class tvClient {
-	constructor(log, device, api) {
+	constructor(log, device, api, foundReceivers) {
 		this.log = log;
 		this.port = 3000;
 		this.api = api;
@@ -89,11 +188,11 @@ class tvClient {
 		this.ip = device.ip;
 
 		this.webAPIPort = device.port || 'auto';
+		if(Number.isInteger(this.webAPIPort)) {
+			this.webAPIPort = this.webAPIPort.toString();
+		}
 
-		if (this.webAPIPort != 'auto')
-			this.devInfoSet = true;
-
-		this.retrieveDenonInformation();
+		this.setDenonInformation();
 		
 		
 		// this.volumeControl = device.volumeControlBulb;
@@ -126,57 +225,36 @@ class tvClient {
 		setTimeout(this.setupTvService.bind(this), infoRetDelay);
 	}
 
-	retrieveDenonInformation() {
+	setDenonInformation() {
 		if (traceOn)
-			this.log.debug('retrieveDenonInformation');
+			this.log.debug('setDenonInformation');
 
-		var that = this;
-		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
-			if(error) {
-				that.devInfoSet = true;
-				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
-				if (that.webAPIPort === 'auto')
-					that.webAPIPort = 8080;
-			} else {
-				body = body.replace(/:/g, '');
-				parseString(body, function (err, result) {
-					if(err) {
-						that.log.debug("Error while parsing retrieveDenonInformation. %s", err);
-					} else {
-						try {
-							that.manufacturer = result.root.device[0].manufacturer[0];
-							that.modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
-							that.serialNumber = result.root.device[0].serialNumber[0];
-							
-							for (let i = 0; i < result.root.device[0].deviceList[0].device.length; i++){
-								try {
-									that.firmwareRevision = result.root.device[0].deviceList[0].device[i].firmware_version[0];
-									break;
-								} catch (error) {
-									that.log.debug(error);
-								}
-							}
-
-							if (that.webAPIPort === 'auto')
-								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
-
-							that.log('----------TV Service----------');
-							that.log('Manufacturer: %s', that.manufacturer);
-							that.log('Model: %s', that.modelName);
-							that.log('Serialnumber: %s', that.serialNumber);
-							that.log('Firmware: %s', that.firmwareRevision);
-							that.log('Port: %s', that.webAPIPort);
-							that.log('------------------------------');
-							that.devInfoSet = true;
-						} catch (error) {
-							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
-							that.log.debug(error);
-						}
-					}
-				});
+		let index;
+		if (!this.devInfoSet) {
+			index = getIndexIP(this.ip);
+			if (index == -1) {
+				return false
 			}
-		});
+		} else {
+			return true;
+		}
+		
+		this.manufacturer = foundReceivers[index][3];
+		this.modelName = foundReceivers[index][4];
+		this.serialNumber = foundReceivers[index][5];
+		this.firmwareRevision = foundReceivers[index][6];
+
+		if(foundReceivers[index][2].includes('80'))
+			this.webAPIPort = foundReceivers[index][2];
+
+		if(this.webAPIPort.includes('80'))
+			this.devInfoSet = true;
+		else 
+			this.log.error('No Denon AVR found in network. Check Denon status or try setting a manual port.');
+			
+		return this.devInfoSet;
 	}
+
 
 	/*****************************************
 	 * Start of TV integration service 
@@ -184,6 +262,9 @@ class tvClient {
 	setupTvService() {
 		if (traceOn)
 			this.log.debug('setupTvService');
+
+		this.setDenonInformation();
+
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
 		this.tvService = new Service.Television(this.name, 'tvService');
@@ -208,8 +289,9 @@ class tvClient {
 			.getCharacteristic(Characteristic.PowerModeSelection)
 			.on('set', (newValue, callback) => {
 				if (this.connected) {
-					if (!this.devInfoSet) 
-						this.retrieveDenonInformation();
+					
+					if (!this.setDenonInformation())
+						return;
 
 					request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
 				} 
@@ -363,11 +445,11 @@ class tvClient {
 	checkReceiverState(callback) {	
 		if (traceOn)
 			this.log.debug('checkReceiverState');	
-		var that = this;
 
-		if (!this.devInfoSet)
-			this.retrieveDenonInformation();
+		if (!this.setDenonInformation())
+			return;
 			
+		var that = this;
 		request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
 				that.log.debug("Error while getting power state %s", error);
@@ -418,8 +500,8 @@ class tvClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 	
-		if (!this.devInfoSet)
-			this.retrieveDenonInformation();
+		if (!this.setDenonInformation())
+			return;
 			
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
@@ -460,8 +542,8 @@ class tvClient {
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
 			
-			if (!this.devInfoSet)
-				this.retrieveDenonInformation();
+			if (!this.setDenonInformation())
+				return;
 				
 			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
 				if(error) {
@@ -479,8 +561,9 @@ class tvClient {
 			this.log.debug('getAppSwitchState');
 		if (this.connected) {
 			var that = this;
-			if (!this.devInfoSet)
-				this.retrieveDenonInformation();
+
+			if (!this.setDenonInformation())
+				return;
 
 			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 				if(error) {
@@ -521,8 +604,9 @@ class tvClient {
 			if (state) {
 				var that = this;
 				that.inputIDSet = true;
-				if (!this.devInfoSet) 
-					this.retrieveDenonInformation();
+
+				if (!this.setDenonInformation())
+					return;
 
 				request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 						if(error) {
@@ -586,8 +670,8 @@ class tvClient {
 
 		var that = this;
 		if (this.connected) {
-			if (!this.devInfoSet)
-				this.retrieveDenonInformation();
+			if (!this.setDenonInformation())
+				return;
 			
 			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
 			// callback();
@@ -622,7 +706,7 @@ class legacyClient {
 		if (this.webAPIPort != 'auto')
 			this.devInfoSet = true;
 
-		this.retrieveDenonInformation();
+		this.setDenonInformation();
 
 		this.inputID = switches.inputID;
 
@@ -647,6 +731,8 @@ class legacyClient {
 	setupLegacyService() {
 		if (traceOn)
 			this.log.debug('setupLegacyService');
+
+		this.setDenonInformation();
 
 		this.accessory.reachable = true;
 		this.accessory.context.model = 'model';
@@ -688,8 +774,8 @@ class legacyClient {
 			this.log.debug('pollForUpdates');
 		var that = this;
 
-		if (!this.devInfoSet)
-			this.retrieveDenonInformation();
+		if (!this.setDenonInformation())
+			return;
 
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
@@ -729,8 +815,8 @@ class legacyClient {
 			this.log.debug('getPowerStateLeg');
 		var that = this;
 
-		if (!this.devInfoSet)
-			this.retrieveDenonInformation();
+		if (!this.setDenonInformation())
+			return;
 
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
@@ -764,8 +850,8 @@ class legacyClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 	
-		if (!this.devInfoSet)
-			this.retrieveDenonInformation();
+		if (!this.setDenonInformation())
+			return;
 		
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
@@ -793,61 +879,37 @@ class legacyClient {
 		});
 	}
 
-	retrieveDenonInformation() {
+	setDenonInformation() {
 		if (traceOn)
-			this.log.debug('retrieveDenonInformation');
+			this.log.debug('setDenonInformation');
 
-		var that = this;
-		request('http://' + this.ip + ':60006/upnp/desc/aios_device/aios_device.xml', function(error, response, body) {
-			if(error) {
-				that.devInfoSet = true;
-				that.log.error("Error while getting information of receiver with IP: %s. %s", that.ip, error);
-				if (that.webAPIPort === 'auto')
-					that.webAPIPort = 8080;
-			} else {
-				body = body.replace(/:/g, '');
-				parseString(body, function (err, result) {
-					if(err) {
-						that.log.debug("Error while parsing retrieveDenonInformation. %s", err);
-					} else {
-						try {
-							that.manufacturer = result.root.device[0].manufacturer[0];
-							that.modelName = (' ' + result.root.device[0].modelName[0]).slice(1);
-							that.serialNumber = result.root.device[0].serialNumber[0];
-							
-							for (let i = 0; i < result.root.device[0].deviceList[0].device.length; i++){
-								try {
-									that.firmwareRevision = result.root.device[0].deviceList[0].device[i].firmware_version[0];
-									break;
-								} catch (error) {
-									that.log.debug(error);
-								}
-							}
-
-							if (that.webAPIPort === 'auto')
-								that.webAPIPort = result.root.device[0].DMHX_WebAPIPort[0];
-
-							that.log('--------Legacy Service--------');
-							that.log('Manufacturer: %s', that.manufacturer);
-							that.log('Model: %s', that.modelName);
-							that.log('Serialnumber: %s', that.serialNumber);
-							that.log('Firmware: %s', that.firmwareRevision);
-							that.log('Port: %s', that.webAPIPort);
-							that.log('------------------------------');
-							that.devInfoSet = true;
-						} catch (error) {
-							that.log.debug('Receiver with IP %s not yet ready.', that.ip);
-							that.log.debug(error);
-						}
-					}
-				});
+		let index;
+		if (!this.devInfoSet) {
+			index = getIndexIP(this.ip);
+			if (index == -1) {
+				return false
 			}
-		});
+		} else {
+			return true;
+		}
+		
+		this.manufacturer = foundReceivers[index][3];
+		this.modelName = foundReceivers[index][4];
+		this.serialNumber = foundReceivers[index][5];
+		this.firmwareRevision = foundReceivers[index][6];
+
+		this.webAPIPort = foundReceivers[index][2];
+
+		if(this.webAPIPort.includes('80'))
+			this.devInfoSet = true;
+		else 
+			this.log.error('No Denon AVR found in network. Check Denon status or try setting a manual port.');
+			
+		return this.devInfoSet;
 	}
 
 	/*****************************************
 	 * End of legacy service 
 	 ****************************************/
-	
 }
 
