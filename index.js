@@ -7,9 +7,9 @@ const discover = require('./lib/discover');
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
 
-const infoRetDelay = 100;
-const defaultTrace = false;
-const autoDiscoverTime = 5000;
+const infoRetDelay = 250;
+const defaultTrace = true;
+const autoDiscoverTime = 3000;
 
 let Service;
 let Characteristic;
@@ -25,6 +25,8 @@ var traceOn
 
 var discoverDev;
 var foundReceivers = [];
+var didFinishLaunching = false;
+var cachedAccessories = [];
 
 module.exports = homebridge => {
 	Service = homebridge.hap.Service;
@@ -35,13 +37,17 @@ module.exports = homebridge => {
 	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
-
 class denonClient {
 	constructor(log, config, api) {
 		this.log = log;
 		this.port = 3000;
 		this.api = api;
 
+		this.api.on('didFinishLaunching', function() {
+			this.log("DidFinishLaunching");
+			didFinishLaunching = true;
+		}.bind(this));
+	  
 		this.tvAccessories = [];
 		this.legacyAccessories = [];
 
@@ -54,6 +60,7 @@ class denonClient {
 		this.switches = config.switches || [];
 
 		traceOn = config.debugTrace || defaultTrace;
+
 
 
 		/* Search for all available Denon receivers */
@@ -69,21 +76,27 @@ class denonClient {
 			this.tvAccessories.push(new tvClient(log, this.devices[i], api));
 		}
 
-
-		
-		this.api.on('didFinishLaunching', this.didFinishLaunching.bind(this));
+		setTimeout(this.removeCachedAccessory.bind(this), autoDiscoverTime+500);
 	}
 
-	configureAccessory(){}
-	removeAccessory(){}
-	didFinishLaunching(){
-		var that = this;
-		setTimeout(function () { 
-			that.log.debug('didFinishLaunching');
-			for (var i in that.legacyAccessories) {
-				that.api.registerPlatformAccessories(pluginName, platformName, [that.legacyAccessories[i].returnAccessory()]);
-			}
-		}, (this.devices.length + 1) * infoRetDelay);
+	configureAccessory(platformAccessory){
+		if (traceOn)
+			this.log.debug('configureAccessory');
+
+		platformAccessory.reachable = true;
+		cachedAccessories.push(platformAccessory);
+	}
+	removeAccessory(platformAccessory){
+		if (traceOn)
+			this.log.debug('removeAccessory');
+
+		this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
+	}
+	removeCachedAccessory(){
+		if (traceOn)
+			this.log.debug('removeCachedAccessory');
+
+		this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
 	}
 }
 
@@ -610,7 +623,7 @@ class legacyClient {
 		var uuid = UUIDGen.generate(this.name+this.ip);
 
 		this.accessory =  new Accessory(this.name, uuid);
-		this.api.unregisterPlatformAccessories(pluginName, platformName, [this.accessory]);
+		// this.api.unregisterPlatformAccessories(pluginName, platformName, [this.accessory]);
 
 		setTimeout(this.setupLegacyService.bind(this), infoRetDelay);
 	}
@@ -622,32 +635,45 @@ class legacyClient {
 		if (traceOn)
 			this.log.debug('setupLegacyService');
 
-		if (!discoverDev.setDenonInformation(this, this.log)) {
+		if (!discoverDev.setDenonInformation(this, this.log) || !didFinishLaunching) {
 			setTimeout(this.setupLegacyService.bind(this), infoRetDelay);
 			return;
 		}
 
 		this.accessory.reachable = true;
-		this.accessory.context.model = 'model';
-		this.accessory.context.url = 'url';
-		this.accessory.context.name = 'name';
-		this.accessory.context.displayName = 'displayName';
 		
-		this.switchService = new Service.Switch(this.name, 'legacyInput');
-		this.switchService
-			.getCharacteristic(Characteristic.On)
-			.on('get', this.getPowerStateLegacy.bind(this))
-			.on('set', this.setPowerStateLegacy.bind(this));
+		this.accessory.context.name = this.name;
+		this.accessory.context.ip = this.ip;
+		this.accessory.context.inputID = this.inputID;
+		this.accessory.context.pollAllInput = this.pollAllInput;
 
-		this.accessory
-			.getService(Service.AccessoryInformation)
-			.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
-			.setCharacteristic(Characteristic.Model, this.modelName)
-			.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
-			.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
+		let isCached = this.testCachedAccessories();
+		this.log.error(isCached);
+		if (!isCached) {
+			this.switchService = new Service.Switch(this.name, 'legacyInput');
+			this.switchService
+				.getCharacteristic(Characteristic.On)
+				.on('get', this.getPowerStateLegacy.bind(this))
+				.on('set', this.setPowerStateLegacy.bind(this));
+
+			this.accessory
+				.getService(Service.AccessoryInformation)
+				.setCharacteristic(Characteristic.Manufacturer, this.manufacturer)
+				.setCharacteristic(Characteristic.Model, this.modelName)
+				.setCharacteristic(Characteristic.SerialNumber, this.serialNumber)
+				.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
 
 			this.accessory.addService(this.switchService);
 
+			this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+		} else {
+			this.accessory
+				.getService(Service.Switch)
+				.getCharacteristic(Characteristic.On)
+				.on('get', this.getPowerStateLegacy.bind(this))
+				.on('set', this.setPowerStateLegacy.bind(this));
+		}
+			
 		/* start the polling */
 		if (!this.checkAliveInterval) {
 			this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), pollingInterval);
@@ -761,6 +787,20 @@ class legacyClient {
 				callback();
 			}
 		});
+	}
+
+	testCachedAccessories() {
+		for (let i in cachedAccessories) {
+			if (cachedAccessories[i].context.name === this.accessory.context.name && 
+				cachedAccessories[i].context.ip === this.accessory.context.ip && 
+				cachedAccessories[i].context.inputID === this.accessory.context.inputID && 
+				cachedAccessories[i].context.pollAllInput === this.accessory.context.pollAllInput) {
+				this.accessory = cachedAccessories[i];
+				cachedAccessories.splice(i,1);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	getDevInfoSet() {
