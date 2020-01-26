@@ -1,13 +1,15 @@
 const request = require('request');
 const parseString = require('xml2js').parseString;
-const ssdp = require('node-ssdp').Client
-  , client = new ssdp({})
+
+/* Include lib */
+const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
 
-const infoRetDelay = 1000;
-const traceOn = false;
+const infoRetDelay = 100;
+const defaultTrace = false;
+const autoDiscoverTime = 5000;
 
 let Service;
 let Characteristic;
@@ -19,6 +21,9 @@ var pollingInterval;
 var infoMenu = 'MNINF';
 var settingsMenu = 'MNMEN ON';
 
+var traceOn
+
+var discoverDev;
 var foundReceivers = [];
 
 module.exports = homebridge => {
@@ -30,66 +35,6 @@ module.exports = homebridge => {
 	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
-function getIndexIP(ipAddr) {
-	for (var i in foundReceivers) {
-		if (foundReceivers[i].indexOf(ipAddr) != -1)
-			return i;
-	}
-	return -1;
-}
-
-function getInfoAddress(ipAddr) {
-	for (var i in foundReceivers) {
-		if (foundReceivers[i][0].indexOf(ipAddr) != -1)
-			return foundReceivers[i][1];
-	}
-	return null;
-}
-
-function retrieveDenonInformation(ipAddr, log) {
-	var index = getIndexIP(ipAddr);
-	request(getInfoAddress(ipAddr), function(error, response, body) {
-		if(error) {
-			that.log.debug("Error while getting information of receiver with IP: %s. %s", foundReceivers[index][0], error);
-		} else {
-			body = body.replace(/:/g, '');
-			parseString(body, function (err, result) {
-				if(err) {
-					log.debug("Error while parsing retrieveDenonInformation. %s", err);
-				} else {
-					try {
-						foundReceivers[index][3] = result.root.device[0].manufacturer[0];
-						foundReceivers[index][4] = (' ' + result.root.device[0].modelName[0]).slice(1);
-						foundReceivers[index][5] = result.root.device[0].serialNumber[0];
-						foundReceivers[index][2] = result.root.device[0].DMHX_WebAPIPort[0];
-						
-						for (let i = 0; i < result.root.device[0].deviceList[0].device.length; i++){
-							try {
-								foundReceivers[index][6] = result.root.device[0].deviceList[0].device[i].firmware_version[0];
-								break;
-							} catch (error) {
-								// log.debug(error);
-							}
-						}
-
-						log('------------------------------');
-						log('IP Address: %s', foundReceivers[index][0]);
-						log('Manufacturer: %s', foundReceivers[index][3]);
-						log('Model: %s', foundReceivers[index][4]);
-						log('Serialnumber: %s', foundReceivers[index][5]);
-						log('Firmware: %s', foundReceivers[index][6]);
-						log('Port: %s', foundReceivers[index][2]);
-						log('------------------------------');
-					} catch (error) {
-						log.debug('Receiver with IP %s not yet ready.', foundReceivers[index][0]);
-						log.debug(error);
-					}
-				}
-			});
-		}
-	});
-}
-
 
 class denonClient {
 	constructor(log, config, api) {
@@ -100,41 +45,6 @@ class denonClient {
 		this.tvAccessories = [];
 		this.legacyAccessories = [];
 
-
-		/* Search for all available Denon receivers */
-		var that = this;
-		client.on('notify', function () {
-			that.log.error('Got a notification.')
-		})
-		  
-		client.on('response', function inResponse(headers, code, rinfo) {
-			let stringData = JSON.stringify(headers, null, '  ');
-			if (stringData.match(/(d|D)enon/)) {
-				let parseData = stringData.match(/"LOCATION": (.*?)(\d+\.\d+\.\d+\.\d+)(.*)/);
-				let temp = parseData[0].split(/"/);
-
-				let ipAddr = temp[3].replace("http://","");
-				let colon = ipAddr.indexOf(":");
-				ipAddr = ipAddr.substring(0,colon);
-
-				let receiver = [];
-
-				receiver.push(ipAddr);
-				receiver.push(temp[3]);
-				if (getIndexIP(ipAddr) == -1)
-				{
-					foundReceivers.push(receiver);
-					retrieveDenonInformation(ipAddr,that.log);
-					that.log.debug(foundReceivers);
-				}
-			}
-		})
-		client.search('upnp:rootdevice')
-		
-
-
-
-
 		this.pollingInterval = config.pollInterval || 5;
 		this.pollingInterval = this.pollingInterval * 1000;
 
@@ -143,7 +53,14 @@ class denonClient {
 		this.devices = config.devices || [];
 		this.switches = config.switches || [];
 
-		// configuration
+		traceOn = config.debugTrace || defaultTrace;
+
+
+		/* Search for all available Denon receivers */
+		discoverDev = new discover(this, this.log, foundReceivers, autoDiscoverTime);
+		
+
+		/* Configure devices */
 		for (var i in this.switches) {
 			this.legacyAccessories.push(new legacyClient(log, this.switches[i], api));
 		}
@@ -186,13 +103,15 @@ class tvClient {
 		// configuration
 		this.name = device.name || 'Denon Receiver';
 		this.ip = device.ip;
+		this.usesManualPort = false;
 
 		this.webAPIPort = device.port || 'auto';
-		if(Number.isInteger(this.webAPIPort)) {
+		if(this.webAPIPort != 'auto') {
 			this.webAPIPort = this.webAPIPort.toString();
+			this.usesManualPort = true;
 		}
 
-		this.setDenonInformation();
+		discoverDev.setDenonInformation(this, this.log);
 		
 		
 		// this.volumeControl = device.volumeControlBulb;
@@ -225,34 +144,20 @@ class tvClient {
 		setTimeout(this.setupTvService.bind(this), infoRetDelay);
 	}
 
-	setDenonInformation() {
-		if (traceOn)
-			this.log.debug('setDenonInformation');
-
-		let index;
-		if (!this.devInfoSet) {
-			index = getIndexIP(this.ip);
-			if (index == -1) {
-				return false
-			}
-		} else {
-			return true;
-		}
-		
-		this.manufacturer = foundReceivers[index][3];
-		this.modelName = foundReceivers[index][4];
-		this.serialNumber = foundReceivers[index][5];
-		this.firmwareRevision = foundReceivers[index][6];
-
-		if(foundReceivers[index][2].includes('80'))
-			this.webAPIPort = foundReceivers[index][2];
-
-		if(this.webAPIPort.includes('80'))
-			this.devInfoSet = true;
-		else 
-			this.log.error('No Denon AVR found in network. Check Denon status or try setting a manual port.');
-			
+	getDevInfoSet() {
 		return this.devInfoSet;
+	}
+	setDevInfoSet(set) {
+		this.devInfoSet = set;
+	}
+	hasManualPort() {
+		return this.usesManualPort;
+	}
+	returnPort() {
+		return this.webAPIPort;
+	}
+	returnIP() {
+		return this.ip;
 	}
 
 
@@ -263,7 +168,10 @@ class tvClient {
 		if (traceOn)
 			this.log.debug('setupTvService');
 
-		this.setDenonInformation();
+		if (!discoverDev.setDenonInformation(this, this.log)) {
+			setTimeout(this.setupTvService.bind(this), infoRetDelay);
+			return;
+		}
 
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
@@ -289,9 +197,6 @@ class tvClient {
 			.getCharacteristic(Characteristic.PowerModeSelection)
 			.on('set', (newValue, callback) => {
 				if (this.connected) {
-					
-					if (!this.setDenonInformation())
-						return;
 
 					request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
 				} 
@@ -445,9 +350,6 @@ class tvClient {
 	checkReceiverState(callback) {	
 		if (traceOn)
 			this.log.debug('checkReceiverState');	
-
-		if (!this.setDenonInformation())
-			return;
 			
 		var that = this;
 		request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
@@ -455,7 +357,7 @@ class tvClient {
 				that.log.debug("Error while getting power state %s", error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 				if(err) {
@@ -499,16 +401,13 @@ class tvClient {
 		var that = this;
 	
 		var stateString = (state ? 'On' : 'Standby');
-	
-		if (!this.setDenonInformation())
-			return;
-			
+				
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
 				that.log.debug("Error while setting power state %s", error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else if(state) {
 				that.connected = true;
 				callback();
@@ -541,15 +440,12 @@ class tvClient {
 		var that = this;
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
-			
-			if (!this.setDenonInformation())
-				return;
-				
+							
 			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
 				if(error) {
 					that.log.debug("Error while setting volume: %s", error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} 
 			});
 		}
@@ -562,14 +458,11 @@ class tvClient {
 		if (this.connected) {
 			var that = this;
 
-			if (!this.setDenonInformation())
-				return;
-
 			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 				if(error) {
 					that.log.debug("Error while getting power state %s", error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+					that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else {
 					parseString(body, function (err, result) {
 						if(err) {
@@ -605,9 +498,6 @@ class tvClient {
 				var that = this;
 				that.inputIDSet = true;
 
-				if (!this.setDenonInformation())
-					return;
-
 				request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 						if(error) {
 						that.log.debug("Error while switching input %s", error);
@@ -615,7 +505,7 @@ class tvClient {
 							callback(error);
 
 					} else if (body.indexOf('Error 403: Forbidden') === 0) {
-						that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+						that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 					} else {
 						if (callback)
 							callback();
@@ -669,10 +559,7 @@ class tvClient {
 		}
 
 		var that = this;
-		if (this.connected) {
-			if (!this.setDenonInformation())
-				return;
-			
+		if (this.connected) {			
 			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
 			// callback();
 			});
@@ -701,12 +588,15 @@ class legacyClient {
 		this.name = switches.name || 'Denon Input';
 		this.ip = switches.ip;
 
+		this.usesManualPort = false;
+
 		this.webAPIPort = switches.port || 'auto';
+		if(this.webAPIPort != 'auto') {
+			this.webAPIPort = this.webAPIPort.toString();
+			this.usesManualPort = true;
+		}
 
-		if (this.webAPIPort != 'auto')
-			this.devInfoSet = true;
-
-		this.setDenonInformation();
+		discoverDev.setDenonInformation(this, this.log);
 
 		this.inputID = switches.inputID;
 
@@ -732,7 +622,10 @@ class legacyClient {
 		if (traceOn)
 			this.log.debug('setupLegacyService');
 
-		this.setDenonInformation();
+		if (!discoverDev.setDenonInformation(this, this.log)) {
+			setTimeout(this.setupLegacyService.bind(this), infoRetDelay);
+			return;
+		}
 
 		this.accessory.reachable = true;
 		this.accessory.context.model = 'model';
@@ -743,8 +636,8 @@ class legacyClient {
 		this.switchService = new Service.Switch(this.name, 'legacyInput');
 		this.switchService
 			.getCharacteristic(Characteristic.On)
-			.on('get', this.getPowerStateLeg.bind(this))
-			.on('set', this.setPowerStateLeg.bind(this));
+			.on('get', this.getPowerStateLegacy.bind(this))
+			.on('set', this.setPowerStateLegacy.bind(this));
 
 		this.accessory
 			.getService(Service.AccessoryInformation)
@@ -774,15 +667,12 @@ class legacyClient {
 			this.log.debug('pollForUpdates');
 		var that = this;
 
-		if (!this.setDenonInformation())
-			return;
-
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
 				that.log.debug("Error while getting power state %s", error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 					if(err) {
@@ -810,24 +700,21 @@ class legacyClient {
 		});
 	}
 
-	getPowerStateLeg(callback) {
+	getPowerStateLegacy(callback) {
 		if (traceOn)
-			this.log.debug('getPowerStateLeg');
+			this.log.debug('getPowerStateLegacy');
 		var that = this;
-
-		if (!this.setDenonInformation())
-			return;
 
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
 				that.log.debug("Error while getting power state %s", error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 					if(err) {
-						that.log.debug("Error while parsing getPowerStateLeg. %s", err);
+						that.log.debug("Error while parsing getPowerStateLegacy. %s", err);
 					}
 					else {	
 						//It is on if it is powered and the correct input is selected.
@@ -843,22 +730,19 @@ class legacyClient {
 		});
 	}
 
-	setPowerStateLeg(state, callback) {
+	setPowerStateLegacy(state, callback) {
 		if (traceOn)
-			this.log.debug('setPowerStateLeg state: %s', state ? 'On' : 'Off');
+			this.log.debug('setPowerStateLegacy state: %s', state ? 'On' : 'Off');
 		var that = this;
 	
 		var stateString = (state ? 'On' : 'Standby');
-	
-		if (!this.setDenonInformation())
-			return;
-		
+			
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
 				that.log.debug("Error while setting power state %s", error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver. Might be due to a wrong port in config file. Try 80 or 8080 manually');
+				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else if(state) {
 				/* Switch to correct input if switching on and legacy service */
 					let inputName = that.inputID;
@@ -879,33 +763,20 @@ class legacyClient {
 		});
 	}
 
-	setDenonInformation() {
-		if (traceOn)
-			this.log.debug('setDenonInformation');
-
-		let index;
-		if (!this.devInfoSet) {
-			index = getIndexIP(this.ip);
-			if (index == -1) {
-				return false
-			}
-		} else {
-			return true;
-		}
-		
-		this.manufacturer = foundReceivers[index][3];
-		this.modelName = foundReceivers[index][4];
-		this.serialNumber = foundReceivers[index][5];
-		this.firmwareRevision = foundReceivers[index][6];
-
-		this.webAPIPort = foundReceivers[index][2];
-
-		if(this.webAPIPort.includes('80'))
-			this.devInfoSet = true;
-		else 
-			this.log.error('No Denon AVR found in network. Check Denon status or try setting a manual port.');
-			
+	getDevInfoSet() {
 		return this.devInfoSet;
+	}
+	setDevInfoSet(set) {
+		this.devInfoSet = set;
+	}
+	hasManualPort() {
+		return this.usesManualPort;
+	}
+	returnPort() {
+		return this.webAPIPort;
+	}
+	returnIP() {
+		return this.ip;
 	}
 
 	/*****************************************
