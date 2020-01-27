@@ -370,7 +370,7 @@ class tvClient {
 				that.log.debug("Error while getting power state %s", error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 				if(err) {
@@ -420,7 +420,7 @@ class tvClient {
 				that.log.debug("Error while setting power state %s", error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else if(state) {
 				that.connected = true;
 				callback();
@@ -458,7 +458,7 @@ class tvClient {
 				if(error) {
 					that.log.debug("Error while setting volume: %s", error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+					that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} 
 			});
 		}
@@ -475,7 +475,7 @@ class tvClient {
 				if(error) {
 					that.log.debug("Error while getting power state %s", error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+					that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else {
 					parseString(body, function (err, result) {
 						if(err) {
@@ -518,7 +518,7 @@ class tvClient {
 							callback(error);
 
 					} else if (body.indexOf('Error 403: Forbidden') === 0) {
-						that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+						that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 					} else {
 						if (callback)
 							callback();
@@ -702,7 +702,7 @@ class legacyClient {
 				that.log.debug("Error while getting power state %s", error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 					if(err) {
@@ -740,7 +740,7 @@ class legacyClient {
 				that.log.debug("Error while getting power state %s", error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 					if(err) {
@@ -772,7 +772,7 @@ class legacyClient {
 				that.log.debug("Error while setting power state %s", error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				that.log.error('Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				that.log.error('ERROR: Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else if(state) {
 				/* Switch to correct input if switching on and legacy service */
 					let inputName = that.inputID;
