@@ -51,7 +51,7 @@ class denonClient {
 		this.tvAccessories = [];
 		this.legacyAccessories = [];
 
-		this.pollingInterval = config.pollInterval || 5;
+		this.pollingInterval = config.pollInterval || 3;
 		this.pollingInterval = this.pollingInterval * 1000;
 
 		pollingInterval = this.pollingInterval;
@@ -648,7 +648,6 @@ class legacyClient {
 		this.accessory.context.pollAllInput = this.pollAllInput;
 
 		let isCached = this.testCachedAccessories();
-		this.log.error(isCached);
 		if (!isCached) {
 			this.switchService = new Service.Switch(this.name, 'legacyInput');
 			this.switchService
@@ -675,8 +674,13 @@ class legacyClient {
 		}
 			
 		/* start the polling */
-		if (!this.checkAliveInterval) {
-			this.checkAliveInterval = setInterval(this.pollForUpdates.bind(this), pollingInterval);
+		setTimeout(this.startPolling, Math.random() * 3000, this);
+		
+	}
+
+	startPolling (that) {
+		if (!that.checkAliveInterval) {
+			that.checkAliveInterval = setInterval(that.pollForUpdates.bind(that), pollingInterval);
 		}
 	}
 
