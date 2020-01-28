@@ -25,6 +25,7 @@ var traceOn
 
 var discoverDev;
 var foundReceivers = [];
+var configReceivers = [];
 var didFinishLaunching = false;
 var cachedAccessories = [];
 
@@ -61,11 +62,18 @@ class denonClient {
 
 		traceOn = config.debugTrace || defaultTrace;
 
-
-
 		/* Search for all available Denon receivers */
 		discoverDev = new discover(this, this.log, foundReceivers, autoDiscoverTime);
 		
+		for (var i in this.switches) {
+			if (!configReceivers[this.switches[i].ip])
+				configReceivers[this.switches[i].ip] = new receiver(log, config, this.switches[i].ip, api);
+		}
+		for (var i in this.devices) {
+			if (!configReceivers[this.devices[i].ip])
+				configReceivers[this.devices[i].ip] = new receiver(log, config, this.devices[i].ip, api);
+		}
+
 
 		/* Configure devices */
 		for (var i in this.switches) {
@@ -100,8 +108,18 @@ class denonClient {
 	}
 }
 
+class receiver {
+	constructor(log, config, ip, api) {
+		this.log = log;
+		this.port = 3000;
+		this.api = api;
+		this.ip = ip;
+		this.log(this.ip);
+	}
+}
+
 class tvClient {
-	constructor(log, device, api, foundReceivers) {
+	constructor(log, device, api) {
 		this.log = log;
 		this.port = 3000;
 		this.api = api;
