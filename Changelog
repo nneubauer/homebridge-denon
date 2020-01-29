@@ -6,3 +6,4 @@
 [2.0.5] Removed some error messages.
 [2.0.6] Fix for bug 2.0.3 
 [2.0.7] Fix for bug in auto-discovery of port settings. Also stable possible to manually set. Fixed bug that the settings of the legacy switches were resetted after resetting homebridge
+[2.0.8] Fix for DDos the receiver if you have several switches of the same receiver. Also some crash fixes.
