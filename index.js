@@ -110,7 +110,7 @@ class receiver {
 		this.devInfoSet = false;
 
 		this.manufacturer = 'Denon';
-		this.modelName = this.switches.model || 'homebridge-denon-heos';
+		this.modelName = 'homebridge-denon-heos';
 		this.serialNumber = 'MVV123';
 		this.firmwareRevision = '0.0';
 
