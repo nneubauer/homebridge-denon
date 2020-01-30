@@ -155,8 +155,17 @@ You can see that it is currently on `SAT/CBL`. This means that you need as input
 
 ## Possible errors
 The following errors can be expected:
+* `Some manual port number are not equal in config file with receiver: xx.xx.xx.xx.`
+If you have multiple switches and/or tv accessories with the same IP but with different manual port settings, you get this error. Only set one port on one receiver.
+
+* `Current port xx with ip: xx.xx.xx.xx, is not suitable. Use 80 or 8080 manually instead.`
+The non-Heos receivers use `80` as port and the Heos receivers use `8080` as port. If you set a different port, you get this error.
+
+* `Can't connect to receiver with ip: xx.xx.xx.xx and port: xx`
+If this happens sometimes, it is not an issue. If this happens more often and you notice unresponsiveness in your home app, it is an issue. This might be due to a wrong IP or a wrong manual port number. It is also possible that the receiver is not accessible in the network. You can try to manuall acces your receiver with the following command in your browser: `http://xx.xx.xx.xx:xx/goform/formMainZone_MainZoneXmlStatusLite.xml`. The xx.xx.xx.xx is your IP and the xx is the manual port. If your network connection is the issue, try setting a static ip for your receiver an if you use wifi, try a lan cable.
+
 * `Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.`
-It is possible that the the software was not able to extract the correct port from the available receivers. Make sure to connect the receivers to the network when (re)starting homebridge. If this doesn't fix the problem, try to set a manual port. 80 is for non-Heos models and 8080 is for Heos models.
+It is possible that the the software was not able to extract the correct port from the available receivers. Make sure to connect the receivers to the network when (re)starting homebridge. If this doesn't fix the problem, try to set a manual port. `80` is for non-Heos models and `8080` is for Heos models.
 
 * `No Denon receiver with IP: xx.xx.xx.xx found in network. Check Denon network status or try setting a manual port.`
 The specified receiver is not found in the network with the auto-discover function. This means that the auto port set will not work and the device information can not be set in homebridge. If you can control your device, you can ignore this warning. If the plugin is not working. You can try to set a manual port and check if the plugin is working in the home app. Otherwise try checking the network connection of the receiver.

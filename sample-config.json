@@ -32,6 +32,10 @@
 					{
 						"inputID": "AUX1",
 						"name": "AUX"
+					},
+					{
+						"inputID": "SAT/CBL",
+						"name": "Satellite/Cable"
 					}
 				]
 			},

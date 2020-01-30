@@ -6,3 +6,6 @@
 [2.0.5] Removed some error messages.
 [2.0.6] Fix for bug 2.0.3 
 [2.0.7] Fix for bug in auto-discovery of port settings. Also stable possible to manually set. Fixed bug that the settings of the legacy switches were resetted after resetting homebridge
+[2.0.8] Fix for DDos the receiver if you have several switches of the same receiver. Also some crash fixes.
+
+[2.1.0] In this new version, a more sophisticated version of the polling method is implemented. Now only one polling loop is running for every receiver you configured. It also pushed new states of your switches and tv accessories to other switches/tv accessories of the same receiver. This means a faster state update if you switch input with switches. Also bugfixes of previous versions.
