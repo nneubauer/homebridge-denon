@@ -112,7 +112,7 @@ class receiver {
 		this.manufacturer = 'Denon';
 		this.modelName = 'homebridge-denon-heos';
 		this.serialNumber = 'MVV123';
-		this.firmwareRevision = '0.0';
+		this.firmwareRevision = '2.1.0';
 
 		this.pollingTimeout = false;
 
