@@ -44,17 +44,17 @@ The standard switches, which are available for all different input types, are 'o
 I add the option to make a general switch that polls for the state no matter the selected input. With this option, it is possible to have one main switch to turn on and off the receiver. You can still choose the default input when turning on the receiver with this switch. This functionality is configurable in the config with: `pollAllInput`.
 
 ### Demo images
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid2.gif>
+<img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/SampleVid1.gif> <img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/SampleVid2.gif>
 
 Left: Two times the same receiver as tv. Two separate switches added which also control a predefined input.
 Right: When controlling the inputs with a tv tile, the separate switches are updated.
 
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Inputs.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Remote.png>
+<img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Inputs.png> <img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Remote.png>
 
 Left: The receiver added as tv. This enables the possibility to control the input and the power state in one tv block.
 Right: When the receiver is added as tv, the receiver can be controlled with the remote. The volume buttons can be used to control the volumes. The info butten can be configured as info menu and settings menu.
 
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches_2.png>
+<img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Switches.png> <img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Switches_2.png>
 
 Left: A sample dedicated switch is added. This switch can be used to turn on the receiver and set it to the correct input.
 Right: When settings the second dedicated switch, the input switches to Apple TV. The other switches is updated, and thus, turned off.
