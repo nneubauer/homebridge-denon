@@ -6,6 +6,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
+const pluginVersion = '2.1.1';
 
 const infoRetDelay = 250;
 const defaultTrace = true;
@@ -51,7 +52,7 @@ class denonClient {
 		traceOn = config.debugTrace || defaultTrace;
 
 		/* Search for all available Denon receivers */
-		discoverDev = new discover(this, this.log, foundReceivers, autoDiscoverTime);
+		discoverDev = new discover(this, this.log, foundReceivers, autoDiscoverTime, pluginVersion);
 		
 		this.configReceivers = [];
 
@@ -110,9 +111,9 @@ class receiver {
 		this.devInfoSet = false;
 
 		this.manufacturer = 'Denon';
-		this.modelName = 'homebridge-denon-heos';
+		this.modelName = pluginName;
 		this.serialNumber = 'MVV123';
-		this.firmwareRevision = '2.1.0';
+		this.firmwareRevision = pluginVersion;
 
 		this.pollingTimeout = false;
 
@@ -235,7 +236,7 @@ class receiver {
 	/*
 	 * Used to update the state of all. Disable polling for one poll.
 	 */
-	updateReceiverState(that, stateInfo, curName) {
+	updateStates(that, stateInfo, curName) {
 		if (curName)
 			that.pollingTimeout = true;
 
@@ -302,7 +303,7 @@ class receiver {
 							that.volDisp = result.item.VolumeDisplay[0].value[0]; 
 
 						if (!that.pollingTimeout)
-							that.updateReceiverState(that, stateInfo, null);
+							that.updateStates(that, stateInfo, null);
 					}
 				});
 			}
@@ -317,8 +318,7 @@ class tvClient {
 		this.api = recv.api;
 		this.recv = recv;
 
-		this.webAPIPort = recv.webAPIPort;
-		this.devInfoSet = false;
+		this.tvServicePort = recv.webAPIPort;
 
 		this.manufacturer = recv.manufacturer;
 		this.modelName = recv.modelName;
@@ -368,11 +368,6 @@ class tvClient {
 		if (traceOn)
 			this.log.debug('setupTvService: %s', this.name);
 
-		if (!discoverDev.setDenonInformation(this, this.log)) {
-			setTimeout(this.setupTvService.bind(this), infoRetDelay);
-			return;
-		}
-
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
 		this.tvService = new Service.Television(this.name, 'tvService');
@@ -398,7 +393,7 @@ class tvClient {
 			.on('set', (newValue, callback) => {
 				if (this.connected) {
 
-					request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
+					request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
 				} 
 				callback();
 			});
@@ -507,10 +502,7 @@ class tvClient {
 	/*****************************************
 	 * Start of helper methods
 	 ****************************************/
-	updateReceiverStatus(tvStatus) {
-		if (traceOn)
-			this.log.debug('updateReceiverStatus: %s', this.name);
-
+	updateReceiverState(tvStatus) {
 		if (!tvStatus) {
 			if (this.powerService) 
 				this.powerService
@@ -538,13 +530,16 @@ class tvClient {
 	}
 
 	setReceiverState(stateInfo) {
+		if (traceOn)
+			this.log.debug('setReceiverState: %s', this.name); 
+
 		if (stateInfo.power) {
 			if ( stateInfo.power === 'ON' ) {
 				this.connected = true;
 			} else {
 				this.connected = false;
 			}
-			this.updateReceiverStatus(this.connected);
+			this.updateReceiverState(this.connected);
 		}
 		if (stateInfo.inputID) {
 			if (this.connected = true) {
@@ -576,9 +571,9 @@ class tvClient {
 			this.log.error('checkReceiverState: %s', this.name);	
 			
 		var that = this;
-		request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+		request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
-				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 				that.log.debug(error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
@@ -611,9 +606,9 @@ class tvClient {
 	
 		var stateString = (state ? 'On' : 'Standby');
 				
-		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+		request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
-				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 				that.log.debug(error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
@@ -628,7 +623,7 @@ class tvClient {
 					masterVol: null,
 					mute: null
 				}
-				that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+				that.recv.updateStates(that.recv, stateInfo, that.name);
 
 				callback();
 			} else {
@@ -641,7 +636,7 @@ class tvClient {
 					masterVol: null,
 					mute: null
 				}
-				that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+				that.recv.updateStates(that.recv, stateInfo, that.name);
 				
 				callback();
 			}
@@ -659,7 +654,7 @@ class tvClient {
 				masterVol: null,
 				mute: null
 			}
-			that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+			that.recv.updateStates(that.recv, stateInfo, that.name);
 
 			callback();
 		} else {
@@ -670,7 +665,7 @@ class tvClient {
 				masterVol: null,
 				mute: null
 			}
-			that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+			that.recv.updateStates(that.recv, stateInfo, that.name);
 
 			callback();
 		}
@@ -689,9 +684,9 @@ class tvClient {
 		if (this.connected) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
 							
-			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
+			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
 				if(error) {
-					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 					that.log.debug(error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
@@ -707,9 +702,9 @@ class tvClient {
 		if (this.connected) {
 			var that = this;
 
-			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 				if(error) {
-					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 					that.log.debug(error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
@@ -748,9 +743,9 @@ class tvClient {
 				this.inputIDSet = true;
 
 				var that = this;
-				request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputNameN, function(error, response, body) {
+				request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?SI' + inputNameN, function(error, response, body) {
 					if(error) {
-						that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+						that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 						that.log.debug(error);
 						if (callback)
 							callback(error);
@@ -765,7 +760,7 @@ class tvClient {
 							masterVol: null,
 							mute: null
 						}
-						that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+						that.recv.updateStates(that.recv, stateInfo, that.name);
 
 						if (callback)
 							callback();
@@ -820,7 +815,7 @@ class tvClient {
 
 		var that = this;
 		if (this.connected) {			
-			request('http://' + this.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
+			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {
 			// callback();
 			});
 		}
@@ -842,8 +837,7 @@ class legacyClient {
 		this.api = recv.api;
 		this.recv = recv;
 
-		this.webAPIPort = recv.webAPIPort;
-		this.devInfoSet = false;
+		this.legacyPort = recv.legacyPort;
 
 		this.manufacturer = recv.manufacturer;
 		this.modelName = recv.modelName;
@@ -909,6 +903,9 @@ class legacyClient {
 	}
 
 	setReceiverState(stateInfo) {
+		if (traceOn)
+			this.log.debug('setReceiverState: %s', this.name);
+
 		if (stateInfo.power && stateInfo.inputID) {
 			if (stateInfo.power === 'ON' && (this.pollAllInput || stateInfo.inputID === this.inputID)) { 
 				this.connected = true;
@@ -943,9 +940,9 @@ class legacyClient {
 			this.log.debug('getPowerStateLegacy: %s', this.name);
 
 		var that = this;
-		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+		request('http://' + that.ip + ':' + this.legacyPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
-				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 				that.log.debug(error);
 				that.connected = false;
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
@@ -976,9 +973,9 @@ class legacyClient {
 		var stateString = (state ? 'On' : 'Standby');
 
 		var that = this;
-		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+		request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
-				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 				that.log.debug(error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
@@ -987,9 +984,9 @@ class legacyClient {
 				/* Switch to correct input if switching on and legacy service */
 				let inputName = that.inputID;
 				inputName = inputName.replace('/', '%2F');
-				request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
+				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 					if(error) {
-						that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+						that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 						that.log.debug(error);
 						callback(error);
 					} else {
@@ -1002,7 +999,7 @@ class legacyClient {
 							masterVol: null,
 							mute: null
 						}
-						that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+						that.recv.updateStates(that.recv, stateInfo, that.name);
 
 						callback();
 					}
@@ -1017,7 +1014,7 @@ class legacyClient {
 					masterVol: null,
 					mute: null
 				}
-				that.recv.updateReceiverState(that.recv, stateInfo, that.name);
+				that.recv.updateStates(that.recv, stateInfo, that.name);
 
 				callback();
 			}
