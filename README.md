@@ -131,12 +131,11 @@ With volume control, you can set the volume level of your receiver. It adds a li
         "platform": "DenonAVR",
         "pollInterval": 3,
         "volumeControl": [{
-				    "name": "Receiver Volume",
-				    "ip": "192.168.1.45",
-				    "volumeLimit": 60,
-				    "port": 8080
-			  }
-		  ]
+            "name": "Receiver Volume",
+            "ip": "192.168.1.45",
+            "volumeLimit": 60,
+            "port": 8080
+        }]
     }]
 }
 ```
