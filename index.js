@@ -837,7 +837,7 @@ class legacyClient {
 		this.api = recv.api;
 		this.recv = recv;
 
-		this.legacyPort = recv.legacyPort;
+		this.legacyPort = recv.webAPIPort;
 
 		this.manufacturer = recv.manufacturer;
 		this.modelName = recv.modelName;
