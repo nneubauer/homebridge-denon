@@ -20,7 +20,13 @@
 
 
 /* Volume items */
+/* Mute */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?MUON
+/* Unmute */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?MUOFF
 /* “Volume Up” Control */
 // http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?MNINF
 /* “Volume Down” Control */
 // http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?MNINF
+/* Set absolute volume level */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?MV495

@@ -44,17 +44,17 @@ The standard switches, which are available for all different input types, are 'o
 I add the option to make a general switch that polls for the state no matter the selected input. With this option, it is possible to have one main switch to turn on and off the receiver. You can still choose the default input when turning on the receiver with this switch. This functionality is configurable in the config with: `pollAllInput`.
 
 ### Demo images
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/SampleVid2.gif>
+<img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/SampleVid1.gif> <img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/SampleVid2.gif>
 
 Left: Two times the same receiver as tv. Two separate switches added which also control a predefined input.
 Right: When controlling the inputs with a tv tile, the separate switches are updated.
 
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Inputs.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Remote.png>
+<img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Inputs.png> <img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Remote.png>
 
 Left: The receiver added as tv. This enables the possibility to control the input and the power state in one tv block.
 Right: When the receiver is added as tv, the receiver can be controlled with the remote. The volume buttons can be used to control the volumes. The info butten can be configured as info menu and settings menu.
 
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/tvService/images/Sample_Switches_2.png>
+<img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Switches.png> <img src=https://github.com/Martvvliet/homebridge-denon-heos/blob/master/images/Sample_Switches_2.png>
 
 Left: A sample dedicated switch is added. This switch can be used to turn on the receiver and set it to the correct input.
 Right: When settings the second dedicated switch, the input switches to Apple TV. The other switches is updated, and thus, turned off.
@@ -64,7 +64,7 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 
 ## Config
 
-See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. One overall `pollInterval` must be set for all devices and switches. Default is 5. The following examples are given:
+See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. The `pollInterval` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
 
 ### TV Accessories
 TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
@@ -118,6 +118,23 @@ Set `pollAllInput` to true if you want a main switch to turn of the receiver no 
             "name": "AVR on iMac",
             "ip": "192.168.1.45",
             "inputID": "GAME"
+        }]
+    }]
+}
+```
+
+### Volume control
+With volume control, you can set the volume level of your receiver. It adds a lightbulb which stands for the absolute volume level of your receiver. The volume limit is used as security. If you accidentally say to Siri: `Set receiver volume to 100`, your eardrums will at least survive. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
+```json
+{
+    "platforms": [{
+        "platform": "DenonAVR",
+        "pollInterval": 3,
+        "volumeControl": [{
+            "name": "Receiver Volume",
+            "ip": "192.168.1.45",
+            "volumeLimit": 60,
+            "port": 8080
         }]
     }]
 }
@@ -178,14 +195,15 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 ## Future work
 
-* Add volume control with a Light Bulb for Siri volume control.
-* Improve updating state of the multiple switches when changing one.
 * Improve volume control for remote widget.
-* Improve polling code for more efficiency.
 * Add support for multi zone.
+* ~~Improve updating state of the multiple switches when changing one.~~
+* ~~Improve polling code for more efficiency.~~
+* ~~Add volume control with a Light Bulb for Siri volume control.~~
 
 ## Bugs
 
+* Auto discovery of non-heos receivers.
 * ~~API port is working with older version of denon receivers.~~
 * ~~Wrong input is selected when turning on the device with automations.~~
 * ~~Wrong input is selected when changing volume.~~
