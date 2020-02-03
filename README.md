@@ -64,7 +64,7 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 
 ## Config
 
-See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. One overall `pollInterval` must be set for all devices and switches. Default is 5. The following examples are given:
+See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. The `pollInterval` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
 
 ### TV Accessories
 TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
@@ -118,6 +118,23 @@ Set `pollAllInput` to true if you want a main switch to turn of the receiver no 
             "name": "AVR on iMac",
             "ip": "192.168.1.45",
             "inputID": "GAME"
+        }]
+    }]
+}
+```
+
+### Volume control
+With volume control, you can set the volume level of your receiver. It adds a lightbulb which stands for the absolute volume level of your receiver. The volume limit is used as security. If you accidentally say to Siri: `Set receiver volume to 100`, your eardrums will at least survive. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
+```json
+{
+    "platforms": [{
+        "platform": "DenonAVR",
+        "pollInterval": 3,
+        "volumeControl": [{
+            "name": "Receiver Volume",
+            "ip": "192.168.1.45",
+            "volumeLimit": 60,
+            "port": 8080
         }]
     }]
 }
@@ -178,14 +195,15 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 ## Future work
 
-* Add volume control with a Light Bulb for Siri volume control.
-* Improve updating state of the multiple switches when changing one.
 * Improve volume control for remote widget.
-* Improve polling code for more efficiency.
 * Add support for multi zone.
+* ~~Improve updating state of the multiple switches when changing one.~~
+* ~~Improve polling code for more efficiency.~~
+* ~~Add volume control with a Light Bulb for Siri volume control.~~
 
 ## Bugs
 
+* Auto discovery of non-heos receivers.
 * ~~API port is working with older version of denon receivers.~~
 * ~~Wrong input is selected when turning on the device with automations.~~
 * ~~Wrong input is selected when changing volume.~~

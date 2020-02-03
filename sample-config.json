@@ -12,7 +12,6 @@
 	"hint": "Always paste into jsonlint.com validation page before starting your homebridge, saves a lot of frustration",
 	"platforms": [{
 		"platform": "DenonAVR",
-		"pollInterval": 3,
 		"devices": [{
 				"name": "Denon Receiver",
 				"ip": "192.168.1.45",
@@ -76,6 +75,12 @@
 				"name": "AVR on iMac",
 				"ip": "192.168.1.45",
 				"inputID": "GAME"
+			}
+		],
+		"volumeControl": [{
+				"name": "Receiver Volume",
+				"ip": "192.168.1.45",
+				"volumeLimit": 60
 			}
 		]
 

@@ -9,3 +9,6 @@
 [2.0.8] Fix for DDos the receiver if you have several switches of the same receiver. Also some crash fixes.
 
 [2.1.0] In this new version, a more sophisticated version of the polling method is implemented. Now only one polling loop is running for every receiver you configured. It also pushed new states of your switches and tv accessories to other switches/tv accessories of the same receiver. This means a faster state update if you switch input with switches. Also bugfixes of previous versions.
+[2.1.1] Bugfix for appearing devices in Home app.
+
+[2.2.0] Added the possibility to add a lightbulb which stands for the volume level of the receiver. Also minor bugfix with cached accessories
