@@ -195,14 +195,15 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 ## Future work
 
-* Add volume control with a Light Bulb for Siri volume control.
-* Improve updating state of the multiple switches when changing one.
 * Improve volume control for remote widget.
-* Improve polling code for more efficiency.
 * Add support for multi zone.
+* ~~Improve updating state of the multiple switches when changing one.~~
+* ~~Improve polling code for more efficiency.~~
+* ~~Add volume control with a Light Bulb for Siri volume control.~~
 
 ## Bugs
 
+* Auto discovery of non-heos receivers.
 * ~~API port is working with older version of denon receivers.~~
 * ~~Wrong input is selected when turning on the device with automations.~~
 * ~~Wrong input is selected when changing volume.~~
