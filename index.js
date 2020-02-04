@@ -28,9 +28,10 @@ let Characteristic;
 let Accessory;
 let UUIDGen;
 
-var traceOn
-
+var traceOn;
+var debugToInfo;
 var discoverDev;
+var g_log;
 
 var foundReceivers = [];
 var cachedAccessories = [];
@@ -46,18 +47,35 @@ module.exports = homebridge => {
 	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
+exports.logDebug = function(string) {
+	if (!debugToInfo)
+		g_log.debug(string);
+	else 
+		g_log.warn(string);
+}
+function logDebug(string) {
+	if (!debugToInfo)
+		g_log.debug(string);
+	else 
+		g_log.warn(string);
+}
+
 class denonClient {
 	constructor(log, config, api) {
 		this.log = log;
 		this.port = 3000;
 		this.api = api;
 
+		g_log = log;
+
 		this.api.on('didFinishLaunching', function() {
-			this.log("DidFinishLaunching");
+			this.log.debug("DidFinishLaunching");
 			didFinishLaunching = true;
 		}.bind(this));
 
 		traceOn = config.debugTrace || defaultTrace;
+
+		debugToInfo = config.debugToInfo || false;
 
 		/* Search for all available Denon receivers */
 		discoverDev = new discover(this, this.log, foundReceivers, autoDiscoverTime, pluginVersion);
@@ -84,20 +102,20 @@ class denonClient {
 
 	configureAccessory(platformAccessory){
 		if (traceOn)
-			this.log.debug('configureAccessory');
+			logDebug('DEBUG: configureAccessory');
 
 		platformAccessory.reachable = true;
 		cachedAccessories.push(platformAccessory);
 	}
 	removeAccessory(platformAccessory){
 		if (traceOn)
-			this.log.debug('removeAccessory');
+			logDebug('DEBUG: removeAccessory');
 
 		this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
 	}
 	removeCachedAccessory(){
 		if (traceOn)
-			this.log.debug('removeCachedAccessory');
+			logDebug('DEBUG: removeCachedAccessory');
 
 		this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
 	}
@@ -119,7 +137,7 @@ class receiver {
 		this.devices = config.devices;
 		this.volumeControl = config.volumeControl;
 
-		this.log.debug('Start receiver with ip: %s', this.ip);
+		logDebug('DEBUG: Start receiver with ip: ' + this.ip);
 
 		this.pollingInterval = config.pollInterval || 3;
 		this.pollingInterval = this.pollingInterval * 1000;
@@ -234,7 +252,7 @@ class receiver {
 				this.log.error('ERROR: Current port %s with ip: %s, is not suitable. Use 80 or 8080 manually instead.', this.webAPIPort, this.ip);
 				process.exit(22);
 			}
-			this.log.debug('Manual port %s set: %s', this.webAPIPort, this.ip);
+			logDebug('DEBUG: Manual port ' + this.webAPIPort + ' set: ' + this.ip);
 		}
 	}
 
@@ -285,7 +303,7 @@ class receiver {
 	 */
 	pollForUpdates() {
 		if (traceOn)
-			this.log.debug('pollForUpdates: %s', this.ip);
+			logDebug('DEBUG: pollForUpdates: ' + this.ip);
 
 		/* Make sure that no poll is happening just after switch in input/power */
 		if (this.pollingTimeout) {
@@ -297,13 +315,13 @@ class receiver {
 		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
 				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
-				that.log.debug(error);
+				logDebug('DEBUG: ' + error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
 				that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 					if(err) {
-						that.log.debug("Error while parsing pollForUpdates. %s", err);
+						logDebug("Error while parsing pollForUpdates. " + err);
 					}
 					else {	
 						if (that.volDisp === null)
@@ -399,13 +417,13 @@ class receiver {
 		request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
 			if(error) {
 				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
-				that.log.debug(error);
+				logDebug('DEBUG: ' + error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
 				that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 			} else {
 				parseString(body, function (err, result) {
 					if(err) {
-						that.log.debug("Error while parsing getPowerStateLegacy. %s", err);
+						logDebug("Error while parsing getPowerStateLegacy. " + err);
 					}
 					else {	
 						if (that.volDisp === null)
@@ -498,7 +516,7 @@ class tvClient {
 	 ****************************************/
 	setupTvService() {
 		if (traceOn)
-			this.log.debug('setupTvService: %s', this.name);
+			logDebug('DEBUG: setupTvService: ' + this.name);
 
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
@@ -544,13 +562,13 @@ class tvClient {
 		this.setupInputSourcesService();
 
 
-		this.log.debug('publishExternalAccessories: %s', this.name);
+		logDebug('DEBUG: publishExternalAccessories: ' + this.name);
 		this.api.publishExternalAccessories(pluginName, [this.tvAccesory]);
 	}
 
 	setupTvSpeakerService() {
 		if (traceOn)
-			this.log.debug('setupTvSpeakerService: %s', this.name);
+			logDebug('DEBUG: setupTvSpeakerService: ' + this.name);
 		this.tvSpeakerService = new Service.TelevisionSpeaker(this.name + ' Volume', 'tvSpeakerService');
 		this.tvSpeakerService
 			.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
@@ -558,7 +576,7 @@ class tvClient {
 		this.tvSpeakerService
 			.getCharacteristic(Characteristic.VolumeSelector)
 			.on('set', (state, callback) => {
-				this.log.debug('Remote control (VolumeSelector), pressed: %s', state === 1 ? 'Down' : 'Up');
+				logDebug('DEBUG: Remote control (VolumeSelector), pressed: ' + state === 1 ? 'Down' : 'Up');
 				this.setVolumeSwitch(state, callback, !state);
 			});
 		
@@ -568,7 +586,7 @@ class tvClient {
 
 	setupInputSourcesService() {
 		if (traceOn)
-			this.log.debug('setupInputSourcesService: %s', this.name);
+			logDebug('DEBUG: setupInputSourcesService: ' + this.name);
 		if (this.inputs === undefined || this.inputs === null || this.inputs.length <= 0) {
 			return;
 		}
@@ -663,7 +681,7 @@ class tvClient {
 
 	setReceiverState(stateInfo) {
 		if (traceOn && setAVRState)
-			this.log.debug('setReceiverState: %s', this.name); 
+			logDebug('DEBUG: setReceiverState: ' + this.name); 
 		
 		if (stateInfo.power === true || stateInfo.power === false)
 			this.updateReceiverState(this.recv.poweredOn);
@@ -693,14 +711,14 @@ class tvClient {
 	 ****************************************/
 	getPowerState(callback) {
 		if (traceOn)
-			this.log.debug('getPowerState: %s', this.name);
+			logDebug('DEBUG: getPowerState: ' + this.name);
 
 		callback(null, this.recv.poweredOn ? 1 : 0);
 	}
 
 	setPowerState(state, callback) {
 		if (traceOn)
-			this.log.debug('setPowerState state: %s', this.name);
+			logDebug('DEBUG: setPowerState state: ' + this.name);
 
 		if (state === 0)
 			state = false;
@@ -713,7 +731,7 @@ class tvClient {
 		request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 			if(error) {
 				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-				that.log.debug(error);
+				logDebug('DEBUG: ' + error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
 				that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
@@ -734,13 +752,13 @@ class tvClient {
 
 	// getVolumeSwitch(callback) {
 	// 	if (traceOn)
-	// 		this.log.debug('getVolumeSwitch: %s', this.name);
+	// 		logDebug('DEBUG: getVolumeSwitch: ' + this.name);
 	// 	callback(null, false);
 	// }
 
 	setVolumeSwitch(state, callback, isUp) {
 		if (traceOn)
-			this.log.debug('setVolumeSwitch: %s', this.name);
+			logDebug('DEBUG: setVolumeSwitch: ' + this.name);
 
 		var that = this;
 		if (this.recv.poweredOn) {
@@ -749,7 +767,7 @@ class tvClient {
 			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
 				if(error) {
 					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-					that.log.debug(error);
+					logDebug('DEBUG: ' + error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} 
@@ -760,7 +778,7 @@ class tvClient {
 
 	getAppSwitchState(callback) {
 		if (traceOn)
-			this.log.debug('getAppSwitchState');
+			logDebug('DEBUG: getAppSwitchState');
 
 		if (this.recv.poweredOn) {
 			let inputName = this.recv.currentInputID;
@@ -777,7 +795,7 @@ class tvClient {
 
 	setAppSwitchState(state, callback, inputName) {
 		if (traceOn)
-			this.log.debug('setAppSwitchState: %s', this.name);
+			logDebug('DEBUG: setAppSwitchState: ' + this.name);
 
 		this.inputIDSet = true;
 
@@ -787,7 +805,7 @@ class tvClient {
 		request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?SI' + inputNameN, function(error, response, body) {
 			if(error) {
 				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-				that.log.debug(error);
+				logDebug('DEBUG: ' + error);
 				if (callback)
 					callback(error);
 
@@ -811,7 +829,7 @@ class tvClient {
 
 	remoteKeyPress(remoteKey, callback) {
 		if (traceOn)
-			this.log.debug('Denon - remote key pressed: %d', remoteKey);
+			logDebug('DEBUG: Denon - remote key pressed: ' + remoteKey);
 		var ctrlString = '';
 
 		switch (remoteKey) {
@@ -895,7 +913,7 @@ class legacyClient {
 	 ****************************************/
 	setupLegacyService() {
 		if (traceOn)
-			this.log.debug('setupLegacyService: %s', this.name);
+			logDebug('DEBUG: setupLegacyService: ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
 		this.uuid = UUIDGen.generate(this.name+this.ip);
@@ -939,7 +957,7 @@ class legacyClient {
 
 	setReceiverState(stateInfo) {
 		if (traceOn && setAVRState)
-			this.log.debug('setReceiverState: %s', this.name);
+			logDebug('DEBUG: setReceiverState: ' + this.name);
 
 		if ((stateInfo.power === true || stateInfo.power === false) && stateInfo.inputID) {
 			if (stateInfo.power && (this.pollAllInput || stateInfo.inputID === this.inputID)) { 
@@ -970,7 +988,7 @@ class legacyClient {
 
 	getPowerStateLegacy(callback) {
 		if (traceOn)
-			this.log.debug('getPowerStateLegacy: %s', this.name);	
+			logDebug('DEBUG: getPowerStateLegacy: ' + this.name);	
 		
 		let switchState = false;
 		if (this.recv.poweredOn && (this.recv.currentInputID == this.inputID || this.pollAllInput))
@@ -981,7 +999,7 @@ class legacyClient {
 
 	setPowerStateLegacy(state, callback) {
 		if (traceOn)
-			this.log.debug('setPowerStateLegacy state: %s', this.name);
+			logDebug('DEBUG: setPowerStateLegacy state: ' + this.name);
 
 		var stateString = (state ? 'On' : 'Standby');
 
@@ -990,7 +1008,7 @@ class legacyClient {
 			request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
 				if(error) {
 					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
-					that.log.debug(error);
+					logDebug('DEBUG: ' + error);
 					callback(error);
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
@@ -1002,7 +1020,7 @@ class legacyClient {
 					request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 						if(error) {
 							that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
-							that.log.debug(error);
+							logDebug('DEBUG: ' + error);
 							callback(error);
 						} else {
 
@@ -1039,7 +1057,7 @@ class legacyClient {
 				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
 				if(error) {
 					that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
-					that.log.debug(error);
+					logDebug('DEBUG: ' + error);
 					callback(error);
 				} else {
 					/* Update possible other switches and accessories too */
@@ -1122,7 +1140,7 @@ class volumeClient {
 	 ****************************************/
 	setupVolumeService() {
 		if (traceOn)
-			this.log.debug('setupVolumeService: %s', this.name);
+			logDebug('DEBUG: setupVolumeService: ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
 		this.uuid = UUIDGen.generate(this.name+this.ip);
@@ -1174,7 +1192,7 @@ class volumeClient {
 
 	setReceiverState(stateInfo) {
 		if (traceOn && setAVRState)
-			this.log.debug('setReceiverState: %s', this.name);
+			logDebug('DEBUG: setReceiverState: ' + this.name);
 
 		if (stateInfo.masterVol) {
 			this.accessory
@@ -1197,7 +1215,7 @@ class volumeClient {
 
 	getMuteState(callback) {
 		if (traceOn)
-			this.log.debug('getMuteState: %s', this.name);
+			logDebug('DEBUG: getMuteState: ' + this.name);
 
 		if (this.recv.poweredOn) {
 			callback(null, !this.recv.muteState);
@@ -1208,7 +1226,7 @@ class volumeClient {
 
 	setMuteState(state, callback) {
 		if (traceOn)
-			this.log.debug('setMuteState: %s', this.name);
+			logDebug('DEBUG: setMuteState: ' + this.name);
 
 		var stateString = (state ? 'MUOFF' : 'MUON');
 
@@ -1216,7 +1234,7 @@ class volumeClient {
 		request('http://' + this.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
 			if(error) {
 				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
-				that.log.debug(error);
+				logDebug('DEBUG: ' + error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
 				that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
@@ -1236,7 +1254,7 @@ class volumeClient {
 
 	getVolume(callback) {
 		if (traceOn)
-			this.log.debug('getVolume: %s', this.name);
+			logDebug('DEBUG: getVolume: ' + this.name);
 
 		if (this.recv.poweredOn) {
 			callback(null, this.recv.volumeLevel);
@@ -1250,7 +1268,7 @@ class volumeClient {
 			level = this.volumeLimit;
 		
 		if (traceOn)
-			this.log.debug('setVolume: %s to :', this.name, level);
+			logDebug('DEBUG: setVolume: ' + this.name + ' to :' + level);
 
 		this.recv.volumeLevel = level;
 		
@@ -1258,7 +1276,7 @@ class volumeClient {
 		request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?MV' + level, function(error, response, body) {
 			if(error) {
 				that.log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
-				that.log.debug(error);
+				logDebug('DEBUG: ' + error);
 				callback(error);
 			} else if (body.indexOf('Error 403: Forbidden') === 0) {
 				that.log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
