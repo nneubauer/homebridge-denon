@@ -191,7 +191,7 @@ class receiver {
 		return this.usesManualPort;
 	}
 	setDisableReceiver(set) {
-		g_log.error('ERROR: Receiver with ip: ' + this.ip + " is disabled. Can't connect through html or Telnet")
+		g_log.error('ERROR: Receiver with IP: ' + this.ip + " is disabled. Can't connect through http or Telnet.")
 		this.disableReceiver = set;
 	}
 
@@ -287,14 +287,14 @@ class receiver {
 						logDebug('DEBUG: No html control possible. Use Telnet control.')
 						that.htmlControl = false;
 					} else {
-						logDebug('DEBUG: Use port 8080 for html control.')
+						g_log('Using http control on port 8080 with receiver: '  + that.ip);
 						that.webAPIPort = '8080';
 						that.controlProtocolSet = true;
 					}
 					that.startConfiguration();
 				});
 			} else {
-				logDebug('DEBUG: Use port 80 for html control.')
+				g_log('Using http control with on 80 with receiver: '  + that.ip);
 				that.webAPIPort = '80';
 				that.controlProtocolSet = true;
 				that.startConfiguration();
@@ -473,7 +473,7 @@ class receiver {
             this.connected = false;
             logDebug('DEBUG: lost connection to ' + this.ip);
 			if (this.attempts > 5){
-				g_log.Error("Can't connect to AVR on " + this.ip);
+				g_log.Error("ERROR: Can't connect to receiver with IP: " + this.ip);
 			}
             setTimeout(() => {
                 connect();
@@ -486,7 +486,7 @@ class receiver {
         });
 
         this.telnetConnection.on('failedLogin', () => {
-            g_log.error("ERROR: Can't login at " + this.ip);
+            g_log.error("ERROR: Can't login at receiver with IP: " + this.ip);
 		});
 
 		this.telnetConnection.on('data', data =>
@@ -592,7 +592,7 @@ connect = async (that) => {
 	that.connected = true;
 	that.attempts = 0;
 	that.controlProtocolSet = true;
-	logDebug('DEBUG: connected to receiver: '  + that.ip);
+	g_log('Using Telnet control with receiver: '  + that.ip);
 };
 
 class tvClient {

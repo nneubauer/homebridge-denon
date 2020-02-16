@@ -6,9 +6,9 @@
 
 ## A Plugin for homebridge to control a Denon AVR
 
-This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver) and possibly Marantz AVRs (some are tested with positive results). The plugin uses the http commands and not on the unstable telnet commands to control Denon AVRs. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which was the basis for version 1 of this plugin.
+This is a [Homebridge](https://github.com/nfarina/homebridge) plugin to control all types of [Denon AVRs](https://www.denon-hifi.nl/nl/product/homecinema/avreceiver) and possibly Marantz AVRs (some are tested with positive results). The plugin uses the http commands as default. As newer Denon receiver don't support http commands anymore, Telnet control is also possible. DUe to the fact that I found these less stable than the http commands, I still prefer the http commands. This git has been forked from [nneubauer/homebridge-denon](https://github.com/nneubauer/homebridge-denon) which was the basis for version 1 of this plugin.
 
-Note: I'm not a javascript coder at all, so be easy on code improvements ;).
+Note: I'm not a javascript coder at all, so be easy on code feedback ;), though please if you have feedback or ideas, let me know.
 
 
 ## Install
@@ -67,7 +67,7 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 See sample-config.json for a complete sample json file. It is possible to add switches and tv services at the same time in one platform. The `pollInterval` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
 
 ### TV Accessories
-TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
+TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the json doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port, used when on auto, is visible in the homebridge log as: `port`.
 
 ```json
 {
@@ -101,7 +101,7 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
 ```
 
 ### Switches
-Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
+Set `pollAllInput` to true if you want a main switch to turn of the receiver no matter the selected input. Default is false. `port` is optional and it's standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port, used when on auto, is visible in the homebridge log as: `port`.
 ```json
 {
     "platforms": [{
@@ -124,7 +124,7 @@ Set `pollAllInput` to true if you want a main switch to turn of the receiver no 
 ```
 
 ### Volume control
-With volume control, you can set the volume level of your receiver. It adds a lightbulb which stands for the absolute volume level of your receiver. The volume limit is used as security. If you accidentally say to Siri: `Set receiver volume to 100`, your eardrums will at least survive. If the plugin is not working, you can try to set it to 8080 for newer receivers and 80 for older ones. The found port, used when on auto, is visible in the homebridge log as: `port`.
+With volume control, you can set the volume level of your receiver. It adds a lightbulb which stands for the absolute volume level of your receiver. The volume limit is used as security. If you accidentally say to Siri: `Set receiver volume to 100`, your eardrums will at least survive. f the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port, used when on auto, is visible in the homebridge log as: `port`.
 ```json
 {
     "platforms": [{
@@ -184,26 +184,35 @@ If this happens sometimes, it is not an issue. If this happens more often and yo
 * `Can not access receiver with IP: xx.xx.xx.xx. Might be due to a wrong port. Try 80 or 8080 manually in config file.`
 It is possible that the the software was not able to extract the correct port from the available receivers. Make sure to connect the receivers to the network when (re)starting homebridge. If this doesn't fix the problem, try to set a manual port. `80` is for non-Heos models and `8080` is for Heos models.
 
-* `No Denon receiver with IP: xx.xx.xx.xx found in network. Check Denon network status or try setting a manual port.`
-The specified receiver is not found in the network with the auto-discover function. This means that the auto port set will not work and the device information can not be set in homebridge. If you can control your device, you can ignore this warning. If the plugin is not working. You can try to set a manual port and check if the plugin is working in the home app. Otherwise try checking the network connection of the receiver.
+* `Receiver with ip: xx.xx.xx.xx is disabled. Can't connect through http or Telnet.`
+The specified receiver is not found in the network with the auto-discover function. This means that the auto port set will not work and the device information can not be set in homebridge. If you can control your device, you can ignore this warning. If the plugin is not working. You can try to set a manual port or set it to telnet and check if the plugin is working in the home app. Otherwise try checking the network connection of the receiver.
+
+* `Can't connect to receiver with IP: xx.xx.xx.xx` 
+The plugin can't connect to the receiver over Telnet. This might be due to a faulty network connection or something in the router. You can test this to open a manual Telnet connection with the receiver on port 23. Please Google if you don't know how this is possible.
+
+* `Can't login at receiver with IP: xx.xx.xx.xx` 
+The plugin can't connect to the receiver over Telnet. This might be due to a faulty network connection or something in the router. You can test this to open a manual Telnet connection with the receiver on port 23. Please Google if you don't know how this is possible.
 
 
 
 ## Further Reading and Thanks
 
-Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version that worked with newer Denon models like my AVR x1400. Also thanks to Jer G who took the time to inform me on the volume control of Denon receivers and input settings with special characters.
+Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version that worked with newer Denon models like my AVR x1400. Thanks to [stfnhmplr](https://github.com/stfnhmplr), as I looked a bit to his Telnet implementation of the Denon. Also thanks to Jer G who took the time to inform me on the volume control of Denon receivers and input settings with special characters.
 
 ## Future work
 
 * Improve volume control for remote widget.
 * Add support for multi zone.
+* Add default volume levels for specific inputs.
+* Add option for auto discovery IP address.
 * ~~Improve updating state of the multiple switches when changing one.~~
 * ~~Improve polling code for more efficiency.~~
 * ~~Add volume control with a Light Bulb for Siri volume control.~~
+* ~~Add support for Telnet communication.~~
 
 ## Bugs
 
-* Auto discovery of non-heos receivers.
+* ~~Auto discovery of non-heos receivers.~~
 * ~~API port is working with older version of denon receivers.~~
 * ~~Wrong input is selected when turning on the device with automations.~~
 * ~~Wrong input is selected when changing volume.~~
