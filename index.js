@@ -1,7 +1,6 @@
 const request = require('request');
 const parseString = require('xml2js').parseString;
 const telnet = require('telnet-client');
-const MarantzDenonTelnet = require('marantz-denon-telnet');
 
 /* Include lib */
 const discover = require('./lib/discover');
