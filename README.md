@@ -1,7 +1,7 @@
 # homebridge-denon-heos
 
 [![NPM version](https://badge.fury.io/js/homebridge-denon-heos.svg)](https://npmjs.org/package/homebridge-denon-heos)
-![License](https://img.shields.io/badge/license-ISC-lightgrey.svg)
+![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)
 [![Downloads](https://img.shields.io/npm/dm/homebridge-denon-heos.svg)](https://npmjs.org/package/homebridge-denon-heos)
 
 ## A Plugin for homebridge to control a Denon AVR
