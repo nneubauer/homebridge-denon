@@ -150,6 +150,7 @@ class receiver {
 		this.htmlControl = true;
 		this.telnetPort = 23;
 		this.devInfoSet = false;
+		this.controlProtocolSet = false;
 		this.telnetConnection;
 
 		this.manufacturer = 'Denon';
@@ -191,6 +192,7 @@ class receiver {
 		return this.usesManualPort;
 	}
 	setDisableReceiver(set) {
+		g_log.error('ERROR: Receiver with ip: ' + this.ip + " is disabled. Can't connect through html or Telnet")
 		this.disableReceiver = set;
 	}
 
@@ -288,12 +290,14 @@ class receiver {
 					} else {
 						logDebug('DEBUG: Use port 8080 for html control.')
 						that.webAPIPort = '8080';
+						this.controlProtocolSet = true;
 					}
 					that.startConfiguration();
 				});
 			} else {
 				logDebug('DEBUG: Use port 80 for html control.')
 				that.webAPIPort = '80';
+				this.controlProtocolSet = true;
 				that.startConfiguration();
 			}
 		});
@@ -348,6 +352,9 @@ class receiver {
 	 * the on characteristic periodically.
 	 */
 	pollForUpdates() {
+		if (!this.controlProtocolSet)
+			return;
+
 		if (traceOn)
 			logDebug('DEBUG: pollForUpdates: ' + this.ip);
 
@@ -466,9 +473,11 @@ class receiver {
         this.telnetConnection.on('close', () => {
             this.connected = false;
             logDebug('DEBUG: lost connection to ' + this.ip);
-            if (this.attempts > 5) throw new Error(`Can't connect to AVR on ${this.ip}`);
+			if (this.attempts > 5){
+				g_log.Error("Can't connect to AVR on " + this.ip);
+			}
             setTimeout(() => {
-                this.connect();
+                connect();
             }, 2000);
         });
 
@@ -485,29 +494,8 @@ class receiver {
             this.telnetResponseHandler(data.toString('utf8').replace(/\r?\n|\r/gm, ''))
         );
 		
-		this.connect();
+		connect(this);
 	}
-
-	connect = async () => {
-        this.attempts++;
-
-        const params = {
-            host: this.ip,
-            port: 23,
-            echoLines: 0,
-            irs: '\r',
-            negotiationMandatory: false,
-            ors: '\r\n',
-            separator: false,
-            shellPrompt: '',
-            timeout: 800,
-        };
-
-        await this.telnetConnection.connect(params);
-        this.connected = true;
-        this.attempts = 0;
-        logDebug('DEBUG: connected to receiver: '  + this.ip);
-	};
 	
 	send(cmd) {
         logDebug('DEBUG: send command ' + cmd);
@@ -584,71 +572,29 @@ class receiver {
 			}
         }
     }
-
-	// manualUpdate(that, updateType, callback) {
-	// 	if (!that.pollingTimeout)
-	// 		that.pollingTimeout = true;
-	// 	else {
-	// 		if (updateType & bitMask.power > 0)
-	// 			callback(null, that.poweredOn);
-	// 		if (updateType & bitMask.inputID > 0)
-	// 			callback(null, that.currentInputID);
-	// 		if (updateType & bitMask.volume > 0)
-	// 			callback(null, that.volumeLevel);
-	// 		if (updateType & bitMask.mute > 0)
-	// 			callback(null, that.muteState);
-	// 		return;
-	// 	}
-
-	// 	request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-	// 		if(error) {
-	// 			g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
-	// 			logDebug('DEBUG: ' + error);
-	// 		} else if (body.indexOf('Error 403: Forbidden') === 0) {
-	// 			g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-	// 		} else {
-	// 			parseString(body, function (err, result) {
-	// 				if(err) {
-	// 					logDebug("Error while parsing getPowerStateLegacy. " + err);
-	// 				}
-	// 				else {	
-	// 					if (that.volDisp === null)
-	// 						that.volDisp = result.item.VolumeDisplay[0].value[0]; 
-
-	// 					if ( result.item.Power[0].value[0] === 'ON' )
-	// 						that.poweredOn = true;
-	// 					else
-	// 						that.poweredOn = false;
-
-	// 					that.currentInputID = result.item.InputFuncSelect[0].value[0];
-
-	// 					/* Parse volume of receiver to 0-100% */
-	// 					let volLevel;
-	// 					if ( that.volDisp === 'Absolute' ) {
-	// 						volLevel = parseInt(result.item.MasterVolume[0].value[0]);
-	// 						that.volumeLevel = volLevel + 80;
-	// 					}
-
-	// 					/* Parse mutestate receiver to bool of HB */
-	// 					if (result.item.Mute[0].value[0] === 'on' )
-	// 						that.muteState = true;
-	// 					else
-	// 						that.muteState = false;
-
-	// 					if (updateType & bitMask.power > 0)
-	// 						callback(null, that.poweredOn);
-	// 					if (updateType & bitMask.inputID > 0)
-	// 						callback(null, that.currentInputID);
-	// 					if (updateType & bitMask.volume > 0)
-	// 						callback(null, that.volumeLevel);
-	// 					if (updateType & bitMask.mute > 0)
-	// 						callback(null, that.muteState);
-	// 				}
-	// 			});
-	// 		}
-	// 	});
-	// }
 }
+
+connect = async (that) => {
+	that.attempts++;
+
+	const params = {
+		host: that.ip,
+		port: 23,
+		echoLines: 0,
+		irs: '\r',
+		negotiationMandatory: false,
+		ors: '\r\n',
+		separator: false,
+		shellPrompt: '',
+		timeout: 800,
+	};
+
+	await that.telnetConnection.connect(params);
+	that.connected = true;
+	that.attempts = 0;
+	that.controlProtocolSet = true;
+	logDebug('DEBUG: connected to receiver: '  + that.ip);
+};
 
 class tvClient {
 	constructor(recv, device) {
