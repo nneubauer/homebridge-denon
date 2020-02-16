@@ -12,3 +12,6 @@
 [2.1.1] Bugfix for appearing devices in Home app.
 
 [2.2.0] Added the possibility to add a lightbulb which stands for the volume level of the receiver. Also minor bugfix with cached accessories
+[2.2.1] Added option to use debug log through config
+
+[2.3.0] Support for Telnet communication in case of newer Denon receivers. Also fixed overall port detection.

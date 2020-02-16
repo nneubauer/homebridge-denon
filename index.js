@@ -1,13 +1,16 @@
 const request = require('request');
 const parseString = require('xml2js').parseString;
+const telnet = require('telnet-client');
+const MarantzDenonTelnet = require('marantz-denon-telnet');
 
 /* Include lib */
 const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.2.0';
+const pluginVersion = '2.3.0';
 
+const defaultPollingInterval = 3;
 const infoRetDelay = 250;
 const defaultTrace = true;
 const autoDiscoverTime = 3000;
@@ -38,6 +41,11 @@ var cachedAccessories = [];
 
 var didFinishLaunching = false;
 
+/* Variables for telnet polling system */
+var g_powerState = false;
+var g_volLevel;
+var g_muteState = false;
+
 module.exports = homebridge => {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
@@ -67,7 +75,7 @@ class denonClient {
 		this.api = api;
 
 		this.api.on('didFinishLaunching', function() {
-			g_log.debug("DidFinishLaunching");
+			logDebug("DidFinishLaunching");
 			didFinishLaunching = true;
 		}.bind(this));
 
@@ -136,10 +144,13 @@ class receiver {
 
 		logDebug('DEBUG: Start receiver with ip: ' + this.ip);
 
-		this.pollingInterval = config.pollInterval || 3;
+		this.pollingInterval = config.pollInterval || defaultPollingInterval;
 		this.pollingInterval = this.pollingInterval * 1000;
 
+		this.htmlControl = true;
+		this.telnetPort = 23;
 		this.devInfoSet = false;
+		this.telnetConnection;
 
 		this.manufacturer = 'Denon';
 		this.modelName = pluginName;
@@ -161,7 +172,7 @@ class receiver {
 
 		this.getPortSettings();
 
-		this.startConfiguration();
+		// this.startConfiguration();
 	}
 
 	getDevInfoSet() {
@@ -243,14 +254,49 @@ class receiver {
 			}	
 		}
 
-		if(this.webAPIPort != 'auto') {
+		if(this.webAPIPort === 'auto') {
+			this.discoverControlInterface();
+		} else if (this.webAPIPort === 'telnet') {
+			this.htmlControl = false;
+			logDebug('DEBUG: Manual control through Telnet set: ' + this.ip);
+			this.startConfiguration();
+		} else {
 			this.usesManualPort = true;
 			if(!this.webAPIPort.includes('80')) {
 				g_log.error('ERROR: Current port %s with ip: %s, is not suitable. Use 80 or 8080 manually instead.', this.webAPIPort, this.ip);
 				process.exit(22);
 			}
 			logDebug('DEBUG: Manual port ' + this.webAPIPort + ' set: ' + this.ip);
+			this.startConfiguration();
 		}
+	}
+
+	/* 
+	 * Try to connect through html interface. If not possible go for Telnet.
+	 */
+	discoverControlInterface () {
+		var that = this;
+		/* Try connecting through port 80 */
+		request('http://' + that.ip + ':80/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			if(error || body.indexOf('Error 403: Forbidden') === 0) {
+				/* Try connecting through port 8080 as 80 could not conenct. */
+				request('http://' + that.ip + ':8080/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+					if(error || body.indexOf('Error 403: Forbidden') === 0) {
+						/* Html control is not possible. Connect through Telnet */
+						logDebug('DEBUG: No html control possible. Use Telnet control.')
+						that.htmlControl = false;
+					} else {
+						logDebug('DEBUG: Use port 8080 for html control.')
+						that.webAPIPort = '8080';
+					}
+					that.startConfiguration();
+				});
+			} else {
+				logDebug('DEBUG: Use port 80 for html control.')
+				that.webAPIPort = '80';
+				that.startConfiguration();
+			}
+		});
 	}
 
 	/* 
@@ -263,7 +309,10 @@ class receiver {
 		if (!discoverDev.setDenonInformation(this, g_log) || !didFinishLaunching) {
 			setTimeout(this.startConfiguration.bind(this), infoRetDelay);
 			return;
-		}
+		}	
+
+		if (!this.htmlControl)
+			this.connectTelnet();
 
 		/* Configure devices */
 		for (var i in this.switches) {
@@ -309,58 +358,65 @@ class receiver {
 		}
 
 		var that = this;
-		request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-			if(error) {
-				g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
-				logDebug('DEBUG: ' + error);
-			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-			} else {
-				parseString(body, function (err, result) {
-					if(err) {
-						logDebug("Error while parsing pollForUpdates. " + err);
-					}
-					else {	
-						if (that.volDisp === null)
-							that.volDisp = result.item.VolumeDisplay[0].value[0];
-						
-						let powerState = false;
-						if (result.item.Power[0].value[0] === 'ON' )
-							powerState = true; 
-
-						/* Parse volume of receiver to 0-100% */
-						let volLevel;
-						if ( that.volDisp === 'Absolute' ) {
-							volLevel = parseInt(result.item.MasterVolume[0].value[0]);
-							volLevel = volLevel + 80;
+		if (this.htmlControl) {
+			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+					logDebug('DEBUG: ' + error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					parseString(body, function (err, result) {
+						if(err) {
+							logDebug("DEBUG: Error while parsing pollForUpdates. " + err);
 						}
+						else {	
+							if (that.volDisp === null)
+								that.volDisp = result.item.VolumeDisplay[0].value[0];
+							
+							let powerState = false;
+							if (result.item.Power[0].value[0] === 'ON' )
+								powerState = true; 
 
-						/* Parse mutestate receiver to bool of HB */
-						let muteState = false;
-						if (result.item.Mute[0].value[0] === 'on' )
-							muteState = true;
+							/* Parse volume of receiver to 0-100% */
+							let volLevel;
+							if ( that.volDisp === 'Absolute' ) {
+								volLevel = parseInt(result.item.MasterVolume[0].value[0]);
+								volLevel = volLevel + 80;
+							}
 
-						let stateInfo = {
-							power: powerState,
-							inputID: result.item.InputFuncSelect[0].value[0],
-							masterVol: volLevel,
-							mute: muteState
+							/* Parse mutestate receiver to bool of HB */
+							let muteState = false;
+							if (result.item.Mute[0].value[0] === 'on' )
+								muteState = true;
+
+							let stateInfo = {
+								power: powerState,
+								inputID: result.item.InputFuncSelect[0].value[0],
+								masterVol: volLevel,
+								mute: muteState
+							}
+
+							if (!that.pollingTimeout)
+								that.updateStates(that, stateInfo, null);
 						}
-
-						if (!that.pollingTimeout)
-							that.updateStates(that, stateInfo, null);
-					}
-				});
-			}
-		});
+					});
+				}
+			});
+		} else {
+			that.telnetConnection.send('PW?');
+			this.telnetConnection.send('MU?');
+			this.telnetConnection.send('MV?');
+			this.telnetConnection.send('SI?');
+		}
 	}
-
 
 
 	/*
 	 * Used to update the state of all. Disable polling for one poll.
 	 */
 	updateStates(that, stateInfo, curName) {
+		// logDebug(stateInfo);
 		if (curName)
 			that.pollingTimeout = true;
 
@@ -396,69 +452,202 @@ class receiver {
 		
 	}
 
-	manualUpdate(that, updateType, callback) {
-		if (!that.pollingTimeout)
-			that.pollingTimeout = true;
-		else {
-			if (updateType & bitMask.power > 0)
-				callback(null, that.poweredOn);
-			if (updateType & bitMask.inputID > 0)
-				callback(null, that.currentInputID);
-			if (updateType & bitMask.volume > 0)
-				callback(null, that.volumeLevel);
-			if (updateType & bitMask.mute > 0)
-				callback(null, that.muteState);
-			return;
-		}
+	/*
+	 * Setup Telnet connection if no HTML control is possible.
+	 */
+	connectTelnet() {
+		this.telnetConnection = new telnet();
 
-		request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
-			if(error) {
-				g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
-				logDebug('DEBUG: ' + error);
-			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-			} else {
-				parseString(body, function (err, result) {
-					if(err) {
-						logDebug("Error while parsing getPowerStateLegacy. " + err);
-					}
-					else {	
-						if (that.volDisp === null)
-							that.volDisp = result.item.VolumeDisplay[0].value[0]; 
+		this.telnetConnection.on('connect', () => {
+            this.connected = true;
+            logDebug('DEBUG" connected to ' + this.ip);
+        });
 
-						if ( result.item.Power[0].value[0] === 'ON' )
-							that.poweredOn = true;
-						else
-							that.poweredOn = false;
+        this.telnetConnection.on('close', () => {
+            this.connected = false;
+            logDebug('DEBUG: lost connection to ' + this.ip);
+            if (this.attempts > 5) throw new Error(`Can't connect to AVR on ${this.ip}`);
+            setTimeout(() => {
+                this.connect();
+            }, 2000);
+        });
 
-						that.currentInputID = result.item.InputFuncSelect[0].value[0];
+        this.telnetConnection.on('error', err => {
+            // the close event will be called, too
+            g_log.error(err);
+        });
 
-						/* Parse volume of receiver to 0-100% */
-						let volLevel;
-						if ( that.volDisp === 'Absolute' ) {
-							volLevel = parseInt(result.item.MasterVolume[0].value[0]);
-							that.volumeLevel = volLevel + 80;
-						}
-
-						/* Parse mutestate receiver to bool of HB */
-						if (result.item.Mute[0].value[0] === 'on' )
-							that.muteState = true;
-						else
-							that.muteState = false;
-
-						if (updateType & bitMask.power > 0)
-							callback(null, that.poweredOn);
-						if (updateType & bitMask.inputID > 0)
-							callback(null, that.currentInputID);
-						if (updateType & bitMask.volume > 0)
-							callback(null, that.volumeLevel);
-						if (updateType & bitMask.mute > 0)
-							callback(null, that.muteState);
-					}
-				});
-			}
+        this.telnetConnection.on('failedLogin', () => {
+            g_log.error("ERROR: Can't login at " + this.ip);
 		});
+
+		this.telnetConnection.on('data', data =>
+            this.telnetResponseHandler(data.toString('utf8').replace(/\r?\n|\r/gm, ''))
+        );
+		
+		this.connect();
 	}
+
+	connect = async () => {
+        this.attempts++;
+
+        const params = {
+            host: this.ip,
+            port: 23,
+            echoLines: 0,
+            irs: '\r',
+            negotiationMandatory: false,
+            ors: '\r\n',
+            separator: false,
+            shellPrompt: '',
+            timeout: 800,
+        };
+
+        await this.telnetConnection.connect(params);
+        this.connected = true;
+        this.attempts = 0;
+        logDebug('DEBUG: connected to receiver: '  + this.ip);
+	};
+	
+	send(cmd) {
+        logDebug('DEBUG: send command ' + cmd);
+
+        if (cmd && this.queue.length) {
+            logDebug('DEBUG: pushed command to queue');
+            this.queue.push(cmd);
+            return;
+        }
+
+        if (!cmd && this.queue.length) {
+            logDebug('DEBUG: get cmd from queue');
+            cmd = this.queue[0];
+            this.queue.shift();
+        }
+
+        this.telnetConnection
+            .send(cmd + '\r')
+            .then(() => {
+                logDebug('DEBUG: command ' + cmd + ' successfully send');
+                if (this.queue.length) setTimeout(() => this.send(), 100);
+            })
+            .catch(err => {
+                logDebug('DEBUG: error: ' + err);
+                if (this.queue.length) setTimeout(() => this.send(), 100);
+            });
+    }
+
+	telnetResponseHandler(res) {
+        const regExp = /MUON|MUOFF|PWON|PWSTANDBY|MV\d{1,3}|SI\S{1,10}/gm;
+        res = res.match(regExp);
+
+        if (!Array.isArray(res)) return;
+
+        for (let i = 0; i < res.length; i++) {
+            // logDebug('DEBUG: received response: ' + res[i]);
+
+            switch (res[i].slice(0,2)) {
+                case 'PW':
+					if (res[i] === 'PWON')
+						g_powerState = true; 
+					else if (res[i] === 'PWSTANDBY')
+						g_powerState = false; 
+					break;
+
+				case 'MV':
+					if (res[i] === /MV\d{1,3}/g.exec(res[i])[0]) {
+						g_volLevel = /\d{1,3}/g.exec(res[i])[0];
+					}
+					break;
+
+                case 'MU':
+					if (res[i] === 'MUON')
+						g_muteState = true; 
+					else if (res[i] === 'MUOFF')
+						g_muteState = false; 
+					break;
+
+				case 'SI':
+					if (res[i].slice(0,7) === 'SINFAIS') {
+						break;
+					}
+					if (res[i] === /SI\S{1,20}/g.exec(res[i])[0]) {
+						let stateInfo = {
+							power: g_powerState,
+							inputID: res[i].slice(2),
+							masterVol: g_volLevel,
+							mute: g_muteState
+						}
+						if (!this.pollingTimeout)
+							this.updateStates(this, stateInfo, null);
+					}
+					break;
+			}
+        }
+    }
+
+	// manualUpdate(that, updateType, callback) {
+	// 	if (!that.pollingTimeout)
+	// 		that.pollingTimeout = true;
+	// 	else {
+	// 		if (updateType & bitMask.power > 0)
+	// 			callback(null, that.poweredOn);
+	// 		if (updateType & bitMask.inputID > 0)
+	// 			callback(null, that.currentInputID);
+	// 		if (updateType & bitMask.volume > 0)
+	// 			callback(null, that.volumeLevel);
+	// 		if (updateType & bitMask.mute > 0)
+	// 			callback(null, that.muteState);
+	// 		return;
+	// 	}
+
+	// 	request('http://' + that.ip + ':' + that.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+	// 		if(error) {
+	// 			g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
+	// 			logDebug('DEBUG: ' + error);
+	// 		} else if (body.indexOf('Error 403: Forbidden') === 0) {
+	// 			g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+	// 		} else {
+	// 			parseString(body, function (err, result) {
+	// 				if(err) {
+	// 					logDebug("Error while parsing getPowerStateLegacy. " + err);
+	// 				}
+	// 				else {	
+	// 					if (that.volDisp === null)
+	// 						that.volDisp = result.item.VolumeDisplay[0].value[0]; 
+
+	// 					if ( result.item.Power[0].value[0] === 'ON' )
+	// 						that.poweredOn = true;
+	// 					else
+	// 						that.poweredOn = false;
+
+	// 					that.currentInputID = result.item.InputFuncSelect[0].value[0];
+
+	// 					/* Parse volume of receiver to 0-100% */
+	// 					let volLevel;
+	// 					if ( that.volDisp === 'Absolute' ) {
+	// 						volLevel = parseInt(result.item.MasterVolume[0].value[0]);
+	// 						that.volumeLevel = volLevel + 80;
+	// 					}
+
+	// 					/* Parse mutestate receiver to bool of HB */
+	// 					if (result.item.Mute[0].value[0] === 'on' )
+	// 						that.muteState = true;
+	// 					else
+	// 						that.muteState = false;
+
+	// 					if (updateType & bitMask.power > 0)
+	// 						callback(null, that.poweredOn);
+	// 					if (updateType & bitMask.inputID > 0)
+	// 						callback(null, that.currentInputID);
+	// 					if (updateType & bitMask.volume > 0)
+	// 						callback(null, that.volumeLevel);
+	// 					if (updateType & bitMask.mute > 0)
+	// 						callback(null, that.muteState);
+	// 				}
+	// 			});
+	// 		}
+	// 	});
+	// }
 }
 
 class tvClient {
@@ -721,30 +910,48 @@ class tvClient {
 		else if (state === 1)
 			state = true;
 	
-		var stateString = (state ? 'On' : 'Standby');
 				
-		var that = this;
-		request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
-			if(error) {
-				g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-				logDebug('DEBUG: ' + error);
-				callback(error);
-			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-			} else {
-				/* Update possible other switches and accessories too */
-				let stateInfo = {
-					power: state,
-					inputID: null,
-					masterVol: null,
-					mute: null
-				}
-				that.recv.updateStates(that.recv, stateInfo, that.name);
+		if (this.recv.htmlControl) {
+			var that = this;
+			var stateString = (state ? 'On' : 'Standby');
 
-				callback();
+			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
+					logDebug('DEBUG: ' + error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						power: state,
+						inputID: null,
+						masterVol: null,
+						mute: null
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					callback();
+				}
+			});
+		} else {
+			var stateString = (state ? 'PWON' : 'PWSTANDBY');
+			this.recv.telnetConnection.send(stateString); 
+				
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				power: state,
+				inputID: null,
+				masterVol: null,
+				mute: null
 			}
-		});
+			this.recv.updateStates(this.recv, stateInfo, this.name);
+
+			callback();
+		}
 	}
+	
 
 	// getVolumeSwitch(callback) {
 	// 	if (traceOn)
@@ -759,15 +966,19 @@ class tvClient {
 		var that = this;
 		if (this.recv.poweredOn) {
 			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
-							
-			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
-				if(error) {
-					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-					logDebug('DEBUG: ' + error);
-				} else if (body.indexOf('Error 403: Forbidden') === 0) {
-					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-				} 
-			});
+						
+			if (this.recv.htmlControl) {	
+				request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
+					if(error) {
+						g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
+						logDebug('DEBUG: ' + error);
+					} else if (body.indexOf('Error 403: Forbidden') === 0) {
+						g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+					} 
+				});
+			} else {
+				that.recv.telnetConnection.send(stateString);
+			}
 		}
 		callback();
 	}
@@ -798,29 +1009,44 @@ class tvClient {
 		let inputNameN = inputName.replace('/', '%2F');
 
 		var that = this;
-		request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?SI' + inputNameN, function(error, response, body) {
-			if(error) {
-				g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-				logDebug('DEBUG: ' + error);
-				if (callback)
-					callback(error);
 
-			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-			} else {
-				/* Update possible other switches and accessories too */
-				let stateInfo = {
-					power: null,
-					inputID: inputName,
-					masterVol: null,
-					mute: null
-				}
-				that.recv.updateStates(that.recv, stateInfo, that.name);
+		if (this.recv.htmlControl) {
+			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?SI' + inputNameN, function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
+					logDebug('DEBUG: ' + error);
+					if (callback)
+						callback(error);
 
-				if (callback)
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						power: null,
+						inputID: inputName,
+						masterVol: null,
+						mute: null
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+
 					callback();
+				}
+			});
+		} else {
+
+			that.recv.telnetConnection.send('SI' + inputName);
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				power: null,
+				inputID: inputName,
+				masterVol: null,
+				mute: null
 			}
-		});
+			that.recv.updateStates(that.recv, stateInfo, that.name);
+
+			callback();
+		}
 	}
 
 	remoteKeyPress(remoteKey, callback) {
@@ -864,8 +1090,12 @@ class tvClient {
 				break;
 		}
 
-		if (this.recv.poweredOn)			
-			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {});
+		if (this.recv.poweredOn) {
+			if (this.recv.htmlControl)
+				request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {});
+			else 
+				this.recv.telnetConnection.send(ctrlString);
+		}
 		
 		callback();
 	}
@@ -939,8 +1169,8 @@ class legacyClient {
 				.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
 
 			this.accessory.addService(this.switchService);
-			g_log.warn(this.name);
-			g_log.info(this.uuid);
+			// g_log.warn(this.name);
+			// g_log.info(this.uuid);
 			this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
 		} else {
 			this.accessory
@@ -997,6 +1227,14 @@ class legacyClient {
 		if (traceOn)
 			logDebug('DEBUG: setPowerStateLegacy state: ' + this.name);
 
+		if (this.recv.htmlControl) {
+			this.setPowerStateHTML(state, callback);
+		} else {
+			this.setPowerStateTelNet(state, callback);
+		}
+	}
+
+	setPowerStateHTML(state, callback) {
 		var stateString = (state ? 'On' : 'Standby');
 
 		var that = this;
@@ -1068,6 +1306,54 @@ class legacyClient {
 					callback();
 				}
 			});
+		}
+	}
+
+	setPowerStateTelNet(state, callback) {
+		var stateString = (state ? 'PWON' : 'PWSTANDBY');
+
+		var that = this;
+		if (this.recv.poweredOn != state) {
+			that.recv.telnetConnection.send(stateString);
+			/* Update possible other switches and accessories too */
+			if(state) {
+				/* Switch to correct input if switching on and legacy service */
+				that.recv.telnetConnection.send('SI' + that.inputID);
+				/* Update possible other switches and accessories too */
+				let stateInfo = {
+					power: state,
+					inputID: that.inputID,
+					masterVol: null,
+					mute: null
+				}
+				that.recv.updateStates(that.recv, stateInfo, that.name);
+
+				callback();
+
+			} else {
+				/* Update possible other switches and accessories too */
+				let stateInfo = {
+					power: state,
+					inputID: that.inputID,
+					masterVol: null,
+					mute: null
+				}
+				that.recv.updateStates(that.recv, stateInfo, that.name);
+
+				callback();
+			}
+		} else {
+			that.recv.telnetConnection.send('SI' + that.inputID);
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				power: state,
+				inputID: that.inputID,
+				masterVol: null,
+				mute: null
+			}
+			that.recv.updateStates(that.recv, stateInfo, that.name);
+
+			callback();
 		}
 	}
 
@@ -1226,25 +1512,40 @@ class volumeClient {
 		var stateString = (state ? 'MUOFF' : 'MUON');
 
 		var that = this;
-		request('http://' + this.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
-			if(error) {
-				g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
-				logDebug('DEBUG: ' + error);
-				callback(error);
-			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-			} else {
-				let stateInfo = {
-					power: null,
-					inputID: null,
-					masterVol: null,
-					mute: !state
-				}
-				that.recv.updateStates(that.recv, stateInfo, that.name);
 
-				callback();
+		if (this.recv.htmlControl) {
+			request('http://' + this.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
+					logDebug('DEBUG: ' + error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					let stateInfo = {
+						power: null,
+						inputID: null,
+						masterVol: null,
+						mute: !state
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					callback();
+				}
+			});
+		} else {
+			that.recv.telnetConnection.send(stateString);
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				power: null,
+				inputID: null,
+				masterVol: null,
+				mute: !state
 			}
-		});
+			that.recv.updateStates(that.recv, stateInfo, that.name);
+
+			callback();
+		}
 	}
 
 	getVolume(callback) {
@@ -1268,26 +1569,41 @@ class volumeClient {
 		this.recv.volumeLevel = level;
 		
 		var that = this;
-		request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?MV' + level, function(error, response, body) {
-			if(error) {
-				g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
-				logDebug('DEBUG: ' + error);
-				callback(error);
-			} else if (body.indexOf('Error 403: Forbidden') === 0) {
-				g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
-			} else {
-				/* Update possible other switches and accessories too */
-				let stateInfo = {
-					power: null,
-					inputID: null,
-					masterVol: level,
-					mute: null
-				}
-				that.recv.updateStates(that.recv, stateInfo, that.name);
 
-				callback();
+		if (this.recv.htmlControl) {
+			request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?MV' + level, function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
+					logDebug('DEBUG: ' + error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						power: null,
+						inputID: null,
+						masterVol: level,
+						mute: null
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					callback();
+				}
+			});
+		} else {
+			that.recv.telnetConnection.send('MV' + level);
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				power: null,
+				inputID: null,
+				masterVol: level,
+				mute: null
 			}
-		});
+			that.recv.updateStates(that.recv, stateInfo, that.name);
+
+			callback();
+		}
 	}
 
 	testCachedAccessories() {
