@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.3.2] - 2020-02-16
+### Added
+- Debug output of polled settings. Useful for testing input names
+
 ## [2.3.1] - 2020-02-16
 ### Fixed
 - Fix for older Node versions

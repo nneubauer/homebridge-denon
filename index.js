@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.3.1';
+const pluginVersion = '2.3.2';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -422,9 +422,10 @@ class receiver {
 	 * Used to update the state of all. Disable polling for one poll.
 	 */
 	updateStates(that, stateInfo, curName) {
-		// logDebug(stateInfo);
 		if (curName)
 			that.pollingTimeout = true;
+		else
+			logDebug(stateInfo);
 
 		if (stateInfo.power === true || stateInfo.power === false)
 			that.poweredOn = stateInfo.power;
