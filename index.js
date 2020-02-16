@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.3.0';
+const pluginVersion = '2.3.1';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -289,14 +289,14 @@ class receiver {
 					} else {
 						logDebug('DEBUG: Use port 8080 for html control.')
 						that.webAPIPort = '8080';
-						this.controlProtocolSet = true;
+						that.controlProtocolSet = true;
 					}
 					that.startConfiguration();
 				});
 			} else {
 				logDebug('DEBUG: Use port 80 for html control.')
 				that.webAPIPort = '80';
-				this.controlProtocolSet = true;
+				that.controlProtocolSet = true;
 				that.startConfiguration();
 			}
 		});
