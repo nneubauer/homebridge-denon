@@ -209,11 +209,4 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 * ~~Improve polling code for more efficiency.~~
 * ~~Add volume control with a Light Bulb for Siri volume control.~~
 * ~~Add support for Telnet communication.~~
-
-## Bugs
-
-* ~~Auto discovery of non-heos receivers.~~
-* ~~API port is working with older version of denon receivers.~~
-* ~~Wrong input is selected when turning on the device with automations.~~
-* ~~Wrong input is selected when changing volume.~~
-* ~~Special characters in inputID not working.~~
+* ~~Auto discovery of communication method.~~
