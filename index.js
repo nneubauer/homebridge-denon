@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.3.4';
+const pluginVersion = '2.3.5';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -17,13 +17,6 @@ const setAVRState = false;
 /* Setup settings button and info button */
 const infoMenu = 'MNINF';
 const settingsMenu = 'MNMEN ON';
-
-const bitMask = {
-	power:   1,
-	inputID: 2,
-	volume:  4,
-	mute:    8
-}
 
 let Service;
 let Characteristic;
@@ -426,7 +419,7 @@ class receiver {
 	updateStates(that, stateInfo, curName) {
 		if (curName)
 			that.pollingTimeout = true;
-		else
+		// else
 			logDebug(stateInfo);
 
 		if (stateInfo.power === true || stateInfo.power === false)
@@ -971,7 +964,7 @@ class tvClient {
 				} else {
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
-						power: null,
+						power: that.recv.poweredOn,
 						inputID: inputName,
 						masterVol: null,
 						mute: null
@@ -986,7 +979,7 @@ class tvClient {
 			that.recv.telnetConnection.send('SI' + inputName);
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
-				power: null,
+				power: that.recv.poweredOn,
 				inputID: inputName,
 				masterVol: null,
 				mute: null
@@ -1517,9 +1510,14 @@ class volumeClient {
 		this.recv.volumeLevel = level;
 		
 		var that = this;
+		var denonLevel;
+		if (level < 10)
+			denonLevel = '0' + level.toString();
+		else
+			denonLevel = level.toString();
 
 		if (this.recv.htmlControl) {
-			request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?MV' + level, function(error, response, body) {
+			request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?MV' + denonLevel, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
 					logDebug('DEBUG: ' + error);
@@ -1540,7 +1538,7 @@ class volumeClient {
 				}
 			});
 		} else {
-			that.recv.telnetConnection.send('MV' + level);
+			that.recv.telnetConnection.send('MV' + denonLevel);
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
 				power: null,
