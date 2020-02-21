@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.3.2';
+const pluginVersion = '2.3.4';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -260,6 +260,7 @@ class receiver {
 		} else if (this.webAPIPort === 'telnet') {
 			this.htmlControl = false;
 			logDebug('DEBUG: Manual control through Telnet set: ' + this.ip);
+			this.controlProtocolSet = true;
 			this.startConfiguration();
 		} else {
 			this.usesManualPort = true;
@@ -268,6 +269,7 @@ class receiver {
 				process.exit(22);
 			}
 			logDebug('DEBUG: Manual port ' + this.webAPIPort + ' set: ' + this.ip);
+			this.controlProtocolSet = true;
 			this.startConfiguration();
 		}
 	}
