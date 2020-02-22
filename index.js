@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.3.5';
+const pluginVersion = '2.3.6';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -372,8 +372,13 @@ class receiver {
 							logDebug("DEBUG: Error while parsing pollForUpdates. " + err);
 						}
 						else {	
-							if (that.volDisp === null)
-								that.volDisp = result.item.VolumeDisplay[0].value[0];
+							try {
+								if (that.volDisp === null)
+									that.volDisp = result.item.VolumeDisplay[0].value[0];
+							} catch(error) {
+								that.volDisp = 'Absolute';
+							}
+
 							
 							let powerState = false;
 							if (result.item.Power[0].value[0] === 'ON' )
