@@ -613,6 +613,7 @@ class tvClient {
 		this.name = device.name || 'Denon Receiver';
 		this.ip = device.ip;
 		this.inputs = device.inputs;
+		this.defaultVolume = {};
 		
 		// this.volumeControl = device.volumeControlBulb;
 		// if (this.volumeControl === undefined) {
@@ -746,6 +747,11 @@ class tvClient {
 				inputName = savedNames[inputID];
 			} else if (value.name) {
 				inputName = value.name;
+			}
+
+			this.defaultVolume[inputID] = 0
+			if (value.defaultVolume !== undefined) {
+				this.defaultVolume[inputID] = value.defaultVolume;
 			}
 
 			// if inputID not null or empty add the input
@@ -954,6 +960,16 @@ class tvClient {
 
 		let inputNameN = inputName.replace('/', '%2F');
 
+		var level = this.defaultVolume[inputName];
+		var denonLevel;
+
+		if (level > 0) {
+			if (level < 10)
+				denonLevel = '0' + level.toString();
+			else
+				denonLevel = level.toString();
+		}
+
 		var that = this;
 
 		if (this.recv.htmlControl) {
@@ -967,14 +983,36 @@ class tvClient {
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else {
-					/* Update possible other switches and accessories too */
-					let stateInfo = {
-						power: that.recv.poweredOn,
-						inputID: inputName,
-						masterVol: null,
-						mute: null
+					/* Set default volume if this is set */
+					if (level > 0) {
+						setTimeout(function(){
+							request('http://' + that.ip + ':' + that.tvServicePort + '/goform/formiPhoneAppDirect.xml?MV' + denonLevel, function(error, response, body) {
+								if(error) {
+									g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
+									logDebug('DEBUG: ' + error);
+									callback(error);
+								} else {
+									/* Update possible other switches and accessories too */
+									let stateInfo = {
+										power: null,
+										inputID: null,
+										masterVol: level,
+										mute: null
+									}
+									that.recv.updateStates(that.recv, stateInfo, that.name);
+
+								}
+							});
+						}, 2000);
 					}
-					that.recv.updateStates(that.recv, stateInfo, that.name);
+						/* Update possible other switches and accessories too */
+						let stateInfo = {
+							power: that.recv.poweredOn,
+							inputID: inputName,
+							masterVol: null,
+							mute: null
+						}
+						that.recv.updateStates(that.recv, stateInfo, that.name);
 
 					callback();
 				}
@@ -982,6 +1020,24 @@ class tvClient {
 		} else {
 
 			that.recv.telnetConnection.send('SI' + inputName);
+
+			/* Set default volume if this is set */
+			if (level > 0) {
+				setTimeout(function(){
+					that.recv.telnetConnection.send('MV' + denonLevel);
+
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						power: null,
+						inputID: null,
+						masterVol: level,
+						mute: null
+					}
+
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+				}, 2000);
+			}
+
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
 				power: that.recv.poweredOn,
@@ -1072,6 +1128,15 @@ class legacyClient {
 		this.ip = switches.ip;
 		this.inputID = switches.inputID;
 		this.pollAllInput = switches.pollAllInput || false;
+
+		this.level = switches.defaultVolume;
+		this.denonLevel;
+		if (this.level > 0) {
+			if (this.level < 10)
+				this.denonLevel = '0' + this.level.toString();
+			else
+				this.denonLevel = this.level.toString();
+		}
 
 		/* setup variables */
 		this.switchState = false;
@@ -1213,6 +1278,8 @@ class legacyClient {
 							}
 							that.recv.updateStates(that.recv, stateInfo, that.name);
 
+							that.setDefaultVolume(that);
+
 							callback();
 						}
 					});
@@ -1226,6 +1293,8 @@ class legacyClient {
 						mute: null
 					}
 					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					that.setDefaultVolume(that);
 
 					callback();
 				}
@@ -1248,6 +1317,8 @@ class legacyClient {
 						mute: null
 					}
 					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					that.setDefaultVolume(that);
 
 					callback();
 				}
@@ -1274,6 +1345,8 @@ class legacyClient {
 				}
 				that.recv.updateStates(that.recv, stateInfo, that.name);
 
+				that.setDefaultVolume(that);
+
 				callback();
 
 			} else {
@@ -1285,6 +1358,8 @@ class legacyClient {
 					mute: null
 				}
 				that.recv.updateStates(that.recv, stateInfo, that.name);
+
+				that.setDefaultVolume(that);
 
 				callback();
 			}
@@ -1299,7 +1374,48 @@ class legacyClient {
 			}
 			that.recv.updateStates(that.recv, stateInfo, that.name);
 
+			that.setDefaultVolume(that);
+
 			callback();
+		}
+	}
+
+	setDefaultVolume(that) {
+		/* Set default volume if this is set */
+		if (that.recv.htmlControl) {
+			setTimeout(function(){
+				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?MV' + that.denonLevel, function(error, response, body) {
+					if(error) {
+						g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
+						logDebug('DEBUG: ' + error);
+						callback(error);
+					} else {
+						/* Update possible other switches and accessories too */
+						let stateInfo = {
+							power: null,
+							inputID: null,
+							masterVol: that.level,
+							mute: null
+						}
+						that.recv.updateStates(that.recv, stateInfo, that.name);
+					}
+				});
+			}, 2000);
+		} else {		
+			if (that.level > 0) {
+				setTimeout(function(){
+					that.recv.telnetConnection.send('MV' + that.denonLevel);
+
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						power: null,
+						inputID: null,
+						masterVol: that.level,
+						mute: null
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+				}, 2000);
+			}
 		}
 	}
 
