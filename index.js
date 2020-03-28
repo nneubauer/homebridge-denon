@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'hombridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.3.6';
+const pluginVersion = '2.4.0';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -101,6 +101,7 @@ class denonClient {
 	configureAccessory(platformAccessory){
 		if (traceOn)
 			logDebug('DEBUG: configureAccessory');
+		logDebug(platformAccessory);
 
 		platformAccessory.reachable = true;
 		cachedAccessories.push(platformAccessory);
@@ -108,12 +109,14 @@ class denonClient {
 	removeAccessory(platformAccessory){
 		if (traceOn)
 			logDebug('DEBUG: removeAccessory');
+		logDebug(platformAccessory);
 
 		this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
 	}
 	removeCachedAccessory(){
 		if (traceOn)
 			logDebug('DEBUG: removeCachedAccessory');
+		logDebug(cachedAccessories);
 
 		this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
 	}
@@ -1677,8 +1680,7 @@ class volumeClient {
 		for (let i in cachedAccessories) {
 			if (cachedAccessories[i].context.subtype == 'volumeInput') {
 				if (cachedAccessories[i].context.name === this.accessory.context.name && 
-					cachedAccessories[i].context.ip === this.accessory.context.ip && 
-					cachedAccessories[i].context.volumeLimit === this.accessory.context.volumeLimit) {
+					cachedAccessories[i].context.ip === this.accessory.context.ip) {
 					this.accessory = cachedAccessories[i];
 					cachedAccessories.splice(i,1);
 					return true;
