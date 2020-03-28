@@ -43,11 +43,21 @@ The standard switches, which are available for all different input types, are 'o
 
 I add the option to make a general switch that polls for the state no matter the selected input. With this option, it is possible to have one main switch to turn on and off the receiver. You can still choose the default input when turning on the receiver with this switch. This functionality is configurable in the config with: `pollAllInput`.
 
-### Demo images
-<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/SampleVid1.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/SampleVid2.gif>
+### Volume control
+With volume control, you can set the volume level of your receiver. It adds a lightbulb which stands for the absolute volume level of your receiver. The volume limit is used as security. If you accidentally say to Siri: `Set receiver volume to 100`, your eardrums will at least survive. 
 
-Left: Two times the same receiver as tv. Two separate switches added which also control a predefined input.
-Right: When controlling the inputs with a tv tile, the separate switches are updated.
+### Demo images
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/Sample_TV2.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/Sample_Switches.gif>
+
+Both: Two times the same receiver as tv. Four separate switches added which also control a predefined input. The volume is set through a default volume level of each input.
+Left: By switching the input of the TV accessory, the input of the receiver is changed. This is directly updated in the other accessories.
+Right: The seperate switches stand for an input. Setting these switches will change the input of the receiver. One switch is a general power switch. Turning off a switch will turn off the receiver
+
+<img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/Sample_Volume.gif> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/Sample_Mute.gif>
+
+Both: Two times the same receiver as tv. Four separate switches added which also control a predefined input. The volume is set through a default volume level of each input.
+Left: Changing the volume bulb will change the volume of the receiver. If you set a volume level higher than the maximum level, it will set the maximum volume level of that volume bulb.
+Right: When pressing a volume bulb, the volume of the receiver will be muted.
 
 <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/Sample_Inputs.png> <img src=https://raw.githubusercontent.com/Martvvliet/homebridge-denon-heos/master/images/Sample_Remote.png>
 
@@ -61,13 +71,12 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 
 
 
-
 ## Config
 
 See sample-config.json for a complete sample JSON file. It is possible to add switches and tv services at the same time in one platform. The `pollInterval` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
 
 ### TV Accessories
-TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the JSON doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and its standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the JSON doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `port` is optional and its standard value is `"auto"`. You can set `defaultVolume` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 
 ```json
 {
@@ -81,7 +90,8 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
             "port": 8080,
             "inputs": [{
                 "inputID": "MPLAY",
-                "name": "Apple TV"
+                "name": "Apple TV",
+				"defaultVolume": 32
             },
             {
                 "inputID": "GAME",
@@ -101,7 +111,7 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
 ```
 
 ### Switches
-Set `pollAllInput` to true if you want a main switch to turn off the receiver no matter the selected input. Default is false. `port` is optional and its standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+Set `pollAllInput` to true if you want a main switch to turn off the receiver no matter the selected input. Default is false. `port` is optional and its standard value is `"auto"`. You can set `defaultVolume` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 ```json
 {
     "platforms": [{
@@ -117,14 +127,15 @@ Set `pollAllInput` to true if you want a main switch to turn off the receiver no
         {
             "name": "AVR on iMac",
             "ip": "192.168.1.45",
-            "inputID": "GAME"
+            "inputID": "GAME",
+			"defaultVolume": 35
         }]
     }]
 }
 ```
 
 ### Volume control
-With volume control, you can set the volume level of your receiver. It adds a lightbulb which stands for the absolute volume level of your receiver. The volume limit is used as security. If you accidentally say to Siri: `Set receiver volume to 100`, your eardrums will at least survive. f the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+Volume control accessories are added as volumeControl. The `"volumeLimit"` is the maximum volume you can set with this control. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 ```json
 {
     "platforms": [{
