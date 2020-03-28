@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
-## [2.4.0] - 2020-02-22
+## [2.4.0] - 2020-03-28
 ### Added
 - Support for default volume levels on inputs.
 
