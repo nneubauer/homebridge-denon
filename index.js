@@ -5,7 +5,7 @@ const telnet = require('telnet-client');
 /* Include lib */
 const discover = require('./lib/discover');
 
-const pluginName = 'hombridge-denon-heos';
+const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
 const pluginVersion = '2.4.0';
 
