@@ -7,13 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Add
 - Add support for multi zone.
-- Add default volume levels for specific inputs.
 - Add option for auto discovery IP address.
 
 ### Change
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.4.1] - 2020-04-26
+### Fixed
+- Fix for crash when running without config file.
+- Fixed typo in plugin name. Might need some cache cleanup in homebridge folder.
+
 ## [2.4.0] - 2020-03-28
 ### Added
 - Support for default volume levels on inputs.

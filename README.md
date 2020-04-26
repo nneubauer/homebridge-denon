@@ -214,8 +214,8 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 
 * Improve volume control for the remote widget.
 * Add support for multi-zone.
-* Add default volume levels for specific inputs.
 * Add option for auto-discovery IP address.
+* ~~Add default volume levels for specific inputs.~~
 * ~~Improve updating state of the multiple switches when changing one.~~
 * ~~Improve polling code for more efficiency.~~
 * ~~Add volume control with a Light Bulb for Siri volume control.~~
