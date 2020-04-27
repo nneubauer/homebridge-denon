@@ -18,7 +18,8 @@
     "Denon",
     "Heos",
     "Heos TV",
-    "Denon TV"
+    "Denon TV",
+    "Marantz"
   ],
   "author": "Nicolas Neubauer, Mart van Vliet",
   "license": "MIT",
@@ -28,14 +29,13 @@
   "homepage": "https://github.com/Martvvliet/homebridge-denon-heos#readme",
   "engines": {
     "node": ">=9.11.2",
-    "homebridge": ">=0.4.46",
+    "homebridge": ">=0.4.53",
     "hap-nodejs": ">=0.4.13"
   },
   "dependencies": {
     "node-ssdp": "^4.0.0",
     "request": ">=2.88",
     "xml2js": ">=0.4.23",
-    "homebridge": ">=0.4.46",
     "telnet-client": ">=1.2.11"
   }
 }
