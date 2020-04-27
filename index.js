@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.5.0';
+const pluginVersion = '2.5.1';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -66,12 +66,14 @@ class denonClient {
 		this.port = 3000;
 		this.api = api;
 
-		try {
-			traceOn = config.debugTrace || defaultTrace;
-		} catch {
-			g_log("No config settings found for homebridge-denon-heos plugin.")
+		/* Stop loading if plugin is not configured */
+		if (!config || (!Array.isArray(config.devices) && !Array.isArray(config.switches) && !Array.isArray(config.volumeControl))) {
+			g_log.warn("No config settings found for homebridge-denon-heos plugin.")
 			return;
 		}
+
+
+		traceOn = config.debugTrace || defaultTrace;
 
 		this.api.on('didFinishLaunching', function() {
 			logDebug("DidFinishLaunching");
