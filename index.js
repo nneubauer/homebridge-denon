@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.4.1';
+const pluginVersion = '2.5.0';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -86,19 +86,34 @@ class denonClient {
 		
 		this.configReceivers = [];
 
-		for (let i in config.switches) {
-			if (!this.configReceivers[config.switches[i].ip])
-				this.configReceivers[config.switches[i].ip] = new receiver(this, config, config.switches[i].ip);
+		try {
+			for (let i in config.switches) {
+				if (!this.configReceivers[config.switches[i].ip])
+					this.configReceivers[config.switches[i].ip] = new receiver(this, config, config.switches[i].ip);
+			}
+		} catch {
+			g_log.error("ERROR: Could not setup switches")
+			return;
 		}
 
-		for (let i in config.devices) {
-			if (!this.configReceivers[config.devices[i].ip])
-				this.configReceivers[config.devices[i].ip] = new receiver(this, config, config.devices[i].ip);
+		try {
+			for (let i in config.devices) {
+				if (!this.configReceivers[config.devices[i].ip])
+					this.configReceivers[config.devices[i].ip] = new receiver(this, config, config.devices[i].ip);
+			}
+		} catch {
+			g_log.error("ERROR: Could not setup devices")
+			return;
 		}
 
-		for (let i in config.volumeControl) {
-			if (!this.configReceivers[config.volumeControl[i].ip])
-				this.configReceivers[config.volumeControl[i].ip] = new receiver(this, config, config.volumeControl[i].ip);
+		try {
+			for (let i in config.volumeControl) {
+				if (!this.configReceivers[config.volumeControl[i].ip])
+					this.configReceivers[config.volumeControl[i].ip] = new receiver(this, config, config.volumeControl[i].ip);
+			}
+		} catch {
+			g_log.error("ERROR: Could not setup volume control")
+			return;
 		}
 
 		setTimeout(this.removeCachedAccessory.bind(this), autoDiscoverTime+500);
@@ -116,15 +131,22 @@ class denonClient {
 		if (traceOn)
 			logDebug('DEBUG: removeAccessory');
 		logDebug(platformAccessory);
-
-		this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
+		try {
+			this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
+		} catch {
+			g_log.error("Could not unregister accessory with name: %s", platformAccessory.context.name);
+		}
 	}
 	removeCachedAccessory(){
 		if (traceOn)
 			logDebug('DEBUG: removeCachedAccessory');
 		logDebug(cachedAccessories);
 
-		this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
+		try {
+			this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
+		} catch {
+			g_log.error("Could not unregister accessories.");
+		}
 	}
 }
 
@@ -142,6 +164,10 @@ class receiver {
 		this.switches = config.switches;
 		this.devices = config.devices;
 		this.volumeControl = config.volumeControl;
+
+		this.devicesDuplicates = [];
+		this.switchesDuplicates = [];
+		this.volumeCtrlDuplicates = [];
 
 		logDebug('DEBUG: Start receiver with ip: ' + this.ip);
 
@@ -198,7 +224,7 @@ class receiver {
 	}
 
 	getPortSettings() {
-		/* Configure devices */
+		/* Configure switches */
 		for (var i in this.switches) {
 			if (this.switches[i].ip === this.ip) {
 
@@ -212,13 +238,13 @@ class receiver {
 						temp = temp.toString();
 						if (temp != this.webAPIPort) {
 							g_log.error('ERROR: Some manual port number are not equal in config file with receiver: %s', this.ip)
-							process.exit(22);
 						}
 					}
 				}
 			}
 		}
 
+		/* Configure devices */
 		for (let i in this.devices) {
 			if (this.devices[i].ip === this.ip) {
 				if (this.webAPIPort === null || this.webAPIPort === 'auto') {
@@ -231,13 +257,13 @@ class receiver {
 						temp = temp.toString();
 						if (temp != this.webAPIPort) {
 							g_log.error('ERROR: Some manual port number are not equal in config file with receiver: %s', this.ip)
-							process.exit(22);
 						}
 					}
 				}
 			}	
 		}
 
+		/* Configure volumeControl */
 		for (let i in this.volumeControl) {
 			if (this.volumeControl[i].ip === this.ip) {
 				if (this.webAPIPort === null || this.webAPIPort === 'auto') {
@@ -250,7 +276,6 @@ class receiver {
 						temp = temp.toString();
 						if (temp != this.webAPIPort) {
 							g_log.error('ERROR: Some manual port number are not equal in config file with receiver: %s', this.ip)
-							process.exit(22);
 						}
 					}
 				}
@@ -268,7 +293,6 @@ class receiver {
 			this.usesManualPort = true;
 			if(!this.webAPIPort.includes('80')) {
 				g_log.error('ERROR: Current port %s with ip: %s, is not suitable. Use 80 or 8080 manually instead.', this.webAPIPort, this.ip);
-				process.exit(22);
 			}
 			logDebug('DEBUG: Manual port ' + this.webAPIPort + ' set: ' + this.ip);
 			this.controlProtocolSet = true;
@@ -321,20 +345,56 @@ class receiver {
 		if (!this.htmlControl)
 			this.connectTelnet();
 
-		/* Configure devices */
+		/* Configure switches */
 		for (var i in this.switches) {
-			if (this.switches[i].ip === this.ip)
-				this.legacyAccessories.push(new legacyClient(this, this.switches[i]));
+			if (this.switches[i].ip === this.ip) {
+				try {
+					if (this.switchesDuplicates[this.switches[i].name]) {
+						g_log.error("A Switch with the name: %s and ip: %s is already added.", this.switches[i].name, this.switches[i].ip);
+						continue;
+					} else {
+						this.switchesDuplicates[this.switches[i].name] = true;
+						this.legacyAccessories.push(new legacyClient(this, this.switches[i]));
+					}
+				} catch {
+					g_log.error("Could not add Switch accessory.");
+				}
+			}
 		}
 
+		/* Configure devices */
 		for (let i in this.devices) {
-			if (this.devices[i].ip === this.ip)
-				this.tvAccessories.push(new tvClient(this, this.devices[i]));
+			if (this.devices[i].ip === this.ip) {
+				try {
+					if (this.devicesDuplicates[this.devices[i].name]) {
+						g_log.error("A Device with the name: %s and ip: %s is already added.", this.devices[i].name, this.devices[i].ip);
+						continue;
+					} else {
+						this.devicesDuplicates[this.devices[i].name] = true;
+						this.tvAccessories.push(new tvClient(this, this.devices[i]));
+					}
+				} catch {
+					g_log.error("Could not add TV accessory.");
+				}
+			}
 		}
 
+		/* Configure volumeControl */
 		for (let i in this.volumeControl) {
-			if (this.volumeControl[i].ip === this.ip)
-				this.volumeAccessories.push(new volumeClient(this, this.volumeControl[i]));
+			if (this.volumeControl[i].ip === this.ip) {
+				try {
+					if (this.volumeCtrlDuplicates[this.volumeControl[i].name]) {
+						g_log.error("A Volume control with the name: %s and ip: %s is already added.", this.volumeControl[i].name, this.volumeControl[i].ip);
+						continue;
+					} else {
+						this.volumeCtrlDuplicates[this.volumeControl[i].name] = true;
+						this.volumeAccessories.push(new volumeClient(this, this.volumeControl[i]));
+					}
+					
+				} catch {
+					g_log.error("Could not add Volume control accessory.");
+				}
+			}
 		}
 			
 		/* start the polling */
@@ -390,20 +450,35 @@ class receiver {
 
 							
 							let powerState = false;
-							if (result.item.Power[0].value[0] === 'ON' )
-								powerState = true; 
+							try {
+								if (result.item.Power[0].value[0] === 'ON' )
+									powerState = true; 
+							} catch(error) {
+								g_log.error('ERROR: Could not retrieve powerstate. Might be due to a wrong ip address.');
+								return;
+							}
 
 							/* Parse volume of receiver to 0-100% */
 							let volLevel;
-							if ( that.volDisp === 'Absolute' ) {
-								volLevel = parseInt(result.item.MasterVolume[0].value[0]);
-								volLevel = volLevel + 80;
+							try {
+								if ( that.volDisp === 'Absolute' ) {
+									volLevel = parseInt(result.item.MasterVolume[0].value[0]);
+									volLevel = volLevel + 80;
+								}
+							} catch(error) {
+								g_log.error('ERROR: Could not retrieve volume level. Might be due to a wrong ip address.');
+								return;
 							}
 
 							/* Parse mutestate receiver to bool of HB */
 							let muteState = false;
-							if (result.item.Mute[0].value[0] === 'on' )
-								muteState = true;
+							try {
+								if (result.item.Mute[0].value[0] === 'on' )
+									muteState = true;
+							} catch(error) {
+								g_log.error('ERROR: Could not retrieve mute state. Might be due to a wrong ip address.');
+								return;
+							}
 
 							let stateInfo = {
 								power: powerState,
@@ -1191,7 +1266,11 @@ class legacyClient {
 			this.accessory.addService(this.switchService);
 			// g_log.warn(this.name);
 			// g_log.info(this.uuid);
-			this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+			try {
+				this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+			} catch {
+				g_log.error("Could not register switch with name: %s", this.accessory.context.name);
+			}
 		} else {
 			this.accessory
 				.getService(Service.Switch)
@@ -1440,7 +1519,11 @@ class legacyClient {
 					return true;
 				}
 				if (this.uuid == cachedAccessories[i].UUID) {
-					this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
+					try {
+						this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
+					} catch {
+						g_log.error("Could not unregister switch with name: %s", cachedAccessories[i].context.name);
+					}
 					cachedAccessories.splice(i,1);
 					return false;
 				}
@@ -1527,7 +1610,11 @@ class volumeClient {
 
 			this.accessory.addService(this.volumeService);
 
-			this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+			try {
+				this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
+			} catch {
+				g_log.error("Could not register volume control with name: %s", this.accessory.context.name);
+			}
 		} else {
 			this.accessory
 				.getService(Service.Lightbulb)
@@ -1692,7 +1779,11 @@ class volumeClient {
 					return true;
 				}
 				if (this.uuid == cachedAccessories[i].UUID) {
-					this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
+					try {
+						this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
+					} catch {
+						g_log.error("Could not register volume control with name: %s", cachedAccessories[i].context.name);
+					}
 					cachedAccessories.splice(i,1);
 					return false;
 				}
