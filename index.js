@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.5.3';
+const pluginVersion = '2.5.4';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -90,7 +90,7 @@ class denonClient {
 
 		try {
 			for (let i in config.switches) {
-				if (config.switches[i].ip && !this.configReceivers[config.switches[i].ip] )
+				if (config.switches[i].ip !== undefined && !this.configReceivers[config.switches[i].ip] )
 					this.configReceivers[config.switches[i].ip] = new receiver(this, config, config.switches[i].ip);
 			}
 		} catch {
@@ -100,7 +100,7 @@ class denonClient {
 
 		try {
 			for (let i in config.devices) {
-				if (config.devices[i].ip && !!this.configReceivers[config.devices[i].ip])
+				if (config.devices[i].ip !== undefined && !this.configReceivers[config.devices[i].ip])
 					this.configReceivers[config.devices[i].ip] = new receiver(this, config, config.devices[i].ip);
 			}
 		} catch {
@@ -110,8 +110,9 @@ class denonClient {
 
 		try {
 			for (let i in config.volumeControl) {
-				if (config.volumeControl[i].ip && !!this.configReceivers[config.volumeControl[i].ip])
-					this.configReceivers[config.volumeControl[i].ip] = new receiver(this, config, config.volumeControl[i].ip);
+				if (config.volumeControl[i].ip !== undefined && !this.configReceivers[config.volumeControl[i].ip]){
+					this.configReceivers[config.volumeControl[i].ip] = new receiver(this, config, config.volumeControl[i].ip);}
+
 			}
 		} catch {
 			g_log.error("ERROR: Could not setup volume control")
@@ -1213,8 +1214,6 @@ class legacyClient {
 		this.name = switches.name || 'Denon Input';
 		this.ip = switches.ip;
 		this.inputID = switches.inputID;
-		if (this.inputID === undefined)
-			return;
 		this.pollAllInput = switches.pollAllInput || false;
 
 		this.level = switches.defaultVolume;
