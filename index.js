@@ -34,9 +34,10 @@ var cachedAccessories = [];
 var didFinishLaunching = false;
 
 /* Variables for telnet polling system */
-var g_powerState = false;
-var g_volLevel;
-var g_muteState = false;
+var g_powerState = [false,false,false];
+var g_volLevel = [0,0,0];
+var g_muteState = [false,false,false];
+var g_inputID = [null,null,null];
 
 module.exports = homebridge => {
 	Service = homebridge.hap.Service;
@@ -125,7 +126,7 @@ class denonClient {
 	configureAccessory(platformAccessory){
 		if (traceOn)
 			logDebug('DEBUG: configureAccessory');
-		logDebug(platformAccessory);
+		//logDebug(platformAccessory);
 
 		platformAccessory.reachable = true;
 		cachedAccessories.push(platformAccessory);
@@ -133,7 +134,7 @@ class denonClient {
 	removeAccessory(platformAccessory){
 		if (traceOn)
 			logDebug('DEBUG: removeAccessory');
-		logDebug(platformAccessory);
+		//logDebug(platformAccessory);
 		try {
 			this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
 		} catch {
@@ -143,7 +144,7 @@ class denonClient {
 	removeCachedAccessory(){
 		if (traceOn)
 			logDebug('DEBUG: removeCachedAccessory');
-		logDebug(cachedAccessories);
+		//logDebug(cachedAccessories);
 
 		try {
 			this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
@@ -195,11 +196,14 @@ class receiver {
 		this.webAPIPort = null;
 		this.checkAliveInterval = null;
 
-		this.poweredOn = false;
-		this.currentInputID;
-		this.volDisp = null;
-		this.volumeLevel = 0;
-		this.muteState = false;
+		this.zTwoEn = true;
+		this.zThreeEn = false;
+
+		this.poweredOn = [false,false,false];
+		this.currentInputID = [null,null,null];
+		this.volDisp = [null,null,null];
+		this.volumeLevel = [30,30,30];
+		this.muteState = [false,false,false];
 
 		this.getPortSettings();
 
@@ -409,7 +413,7 @@ class receiver {
 	 */
 	startPolling (that) {
 		if (!that.checkAliveInterval) {
-			that.checkAliveInterval = setInterval(that.pollForUpdates.bind(that), that.pollingInterval);
+			that.checkAliveInterval = setInterval(that.pollForUpdates.bind(that, 1), that.pollingInterval);
 		}
 	}
 
@@ -417,12 +421,12 @@ class receiver {
 	 * This will start a polling loop that goes on forever and updates
 	 * the on characteristic periodically.
 	 */
-	pollForUpdates() {
+	pollForUpdates(zone) {
 		if (!this.controlProtocolSet)
 			return;
 
 		if (traceOn)
-			logDebug('DEBUG: pollForUpdates: ' + this.ip);
+			logDebug('DEBUG: pollForUpdates zone: ' + zone + ': ' + this.ip);
 
 		/* Make sure that no poll is happening just after switch in input/power */
 		if (this.pollingTimeout) {
@@ -431,8 +435,18 @@ class receiver {
 		}
 
 		var that = this;
+
 		if (this.htmlControl) {
-			request('http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml', function(error, response, body) {
+			var requestString;
+			if (zone == 1) 
+				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml';
+			else if (zone == 2) 
+				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formZone2_Zone2XmlStatusLite.xml';
+			else if (zone == 3) 
+				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formZone3_Zone3XmlStatusLite.xml';
+			
+			
+			request(requestString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.webAPIPort);
 					logDebug('DEBUG: ' + error);
@@ -445,13 +459,12 @@ class receiver {
 						}
 						else {	
 							try {
-								if (that.volDisp === null)
-									that.volDisp = result.item.VolumeDisplay[0].value[0];
+								if (that.volDisp[zone] === null)
+									that.volDisp[zone] = result.item.VolumeDisplay[0].value[0];
 							} catch(error) {
-								that.volDisp = 'Absolute';
+								that.volDisp[zone] = 'Absolute';
 							}
 
-							
 							let powerState = false;
 							try {
 								if (result.item.Power[0].value[0] === 'ON' )
@@ -464,7 +477,7 @@ class receiver {
 							/* Parse volume of receiver to 0-100% */
 							let volLevel;
 							try {
-								if ( that.volDisp === 'Absolute' ) {
+								if ( that.volDisp[zone] === 'Absolute' ) {
 									volLevel = parseInt(result.item.MasterVolume[0].value[0]);
 									volLevel = volLevel + 80;
 								}
@@ -484,6 +497,7 @@ class receiver {
 							}
 
 							let stateInfo = {
+								zone: zone,
 								power: powerState,
 								inputID: result.item.InputFuncSelect[0].value[0],
 								masterVol: volLevel,
@@ -492,6 +506,11 @@ class receiver {
 
 							if (!that.pollingTimeout)
 								that.updateStates(that, stateInfo, null);
+							
+							if (zone == 1 && that.zTwoEn)
+								that.pollForUpdates(2);
+							else if (zone == 2 && that.zThreeEn)
+								that.pollForUpdates(3);
 						}
 					});
 				}
@@ -501,6 +520,14 @@ class receiver {
 			this.telnetConnection.send('MU?');
 			this.telnetConnection.send('MV?');
 			this.telnetConnection.send('SI?');
+			if (that.zTwoEn) {
+				this.telnetConnection.send('Z2MU?');
+				that.telnetConnection.send('Z2?');
+			}
+			if (that.zThreeEn) {
+				this.telnetConnection.send('Z3MU?');
+				that.telnetConnection.send('Z3?');		
+			}
 		}
 	}
 
@@ -515,16 +542,16 @@ class receiver {
 			logDebug(stateInfo);
 
 		if (stateInfo.power === true || stateInfo.power === false)
-			that.poweredOn = stateInfo.power;
+			that.poweredOn[stateInfo.zone-1] = stateInfo.power;
 
 		if (stateInfo.inputID)
-			that.currentInputID = stateInfo.inputID;
+			that.currentInputID[stateInfo.zone-1] = stateInfo.inputID;
 
 		if (stateInfo.mute === true || stateInfo.mute === false)
-			that.muteState = stateInfo.mute;
+			that.muteState[stateInfo.zone-1] = stateInfo.mute;
 		
 		if (stateInfo.masterVol)
-			that.volumeLevel = stateInfo.masterVol;
+			that.volumeLevel[stateInfo.zone-1] = stateInfo.masterVol;
 
 		for (let i in that.legacyAccessories) {
 			if (that.legacyAccessories[i].getName() != curName) {
@@ -612,7 +639,7 @@ class receiver {
     }
 
 	telnetResponseHandler(res) {
-        const regExp = /MUON|MUOFF|PWON|PWSTANDBY|MV\d{1,3}|SI\S{1,10}/gm;
+        const regExp = /MUON|MUOFF|PWON|PWSTANDBY|MV\d{1,3}|SI\S{1,10}|Z2MUON|Z2MUOFF|Z2ON|Z2OFF|Z2\d{1,3}|Z2\S{1,10}|Z3MUON|Z3MUOFF|Z3ON|Z3OFF|Z3\d{1,3}|Z3\S{1,10}/gm;
         res = res.match(regExp);
 
         if (!Array.isArray(res)) return;
@@ -623,22 +650,22 @@ class receiver {
             switch (res[i].slice(0,2)) {
                 case 'PW':
 					if (res[i] === 'PWON')
-						g_powerState = true; 
+						g_powerState[0] = true; 
 					else if (res[i] === 'PWSTANDBY')
-						g_powerState = false; 
+						g_powerState[0] = false; 
 					break;
 
 				case 'MV':
 					if (res[i] === /MV\d{1,3}/g.exec(res[i])[0]) {
-						g_volLevel = /\d{1,3}/g.exec(res[i])[0];
+						g_volLevel[0] = parseInt(/\d{1,3}/g.exec(res[i])[0]);
 					}
 					break;
 
                 case 'MU':
 					if (res[i] === 'MUON')
-						g_muteState = true; 
+						g_muteState[0] = true; 
 					else if (res[i] === 'MUOFF')
-						g_muteState = false; 
+						g_muteState[0] = false; 
 					break;
 
 				case 'SI':
@@ -647,14 +674,65 @@ class receiver {
 					}
 					if (res[i] === /SI\S{1,20}/g.exec(res[i])[0]) {
 						let stateInfo = {
-							power: g_powerState,
+							zone: 1,
+							power: g_powerState[0],
 							inputID: res[i].slice(2),
-							masterVol: g_volLevel,
-							mute: g_muteState
+							masterVol: g_volLevel[0],
+							mute: g_muteState[0]
 						}
 						if (!this.pollingTimeout)
 							this.updateStates(this, stateInfo, null);
 					}
+					break;
+				case 'Z2':
+					if (res[i] === 'Z2ON')
+						g_powerState[1] = true; 
+					else if (res[i] === 'Z2OFF')
+						g_powerState[1] = false; 
+					else if (res[i] === 'Z2MUON')
+						g_muteState[1] = true; 
+					else if (res[i] === 'Z2MUOFF')
+						g_muteState[1] = false; 
+					else if (res[i].slice(2,9) === 'SINFAIS')
+						break;
+					else if (parseInt(res[i].slice(2)) == parseInt(res[i].slice(2))) {
+						let stateInfo = {
+							zone: 2,
+							power: g_powerState[1],
+							inputID: g_inputID[1],
+							masterVol: parseInt(res[i].slice(2,5)),
+							mute: g_muteState[1]
+						}
+						if (!this.pollingTimeout)
+							this.updateStates(this, stateInfo, null);
+					}
+					else if (res[i] === /Z2\S{1,20}/g.exec(res[i])[0])
+						g_inputID[1] = res[i].slice(2);
+					break;
+				case 'Z3':
+					if (res[i] === 'Z3ON')
+						g_powerState[2] = true; 
+					else if (res[i] === 'Z3OFF')
+						g_powerState[2] = false; 
+					else if (res[i] === 'Z3MUON')
+						g_muteState[2] = true; 
+					else if (res[i] === 'Z3MUOFF')
+						g_muteState[2] = false; 
+					else if (res[i].slice(2,9) === 'SINFAIS')
+						break;
+					else if (parseInt(res[i].slice(2)) == parseInt(res[i].slice(2))) {
+						let stateInfo = {
+							zone: 2,
+							power: g_powerState[2],
+							inputID: g_inputID[2],
+							masterVol: parseInt(res[i].slice(2,5)),
+							mute: g_muteState[2]
+						}
+						if (!this.pollingTimeout)
+							this.updateStates(this, stateInfo, null);
+					}
+					else if (res[i] === /Z3\S{1,20}/g.exec(res[i])[0])
+						g_inputID[2] = res[i].slice(2);
 					break;
 			}
         }
@@ -700,18 +778,10 @@ class tvClient {
 		this.name = device.name || 'Denon Receiver';
 		this.ip = device.ip;
 		this.inputs = device.inputs;
+		this.zone = device.zone || 1;
+		this.iterator = this.zone - 1;
 		this.defaultVolume = {};
 		
-		// this.volumeControl = device.volumeControlBulb;
-		// if (this.volumeControl === undefined) {
-		// 	this.volumeControl = false;
-		// }
-		// this.volumeLimit = device.volumeLimit;
-		// if (this.volumeLimit === undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
-		// 	this.volumeLimit = 100;
-		// }
-
-
 		this.switchInfoMenu = device.switchInfoMenu;
 		if (this.switchInfoMenu === true) {
 			this.infoButton = settingsMenu;
@@ -735,7 +805,7 @@ class tvClient {
 	 ****************************************/
 	setupTvService() {
 		if (traceOn)
-			logDebug('DEBUG: setupTvService: ' + this.name);
+			logDebug('DEBUG: setupTvService zone: ' + this.zone + ': ' + this.name);
 
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
 
@@ -760,7 +830,7 @@ class tvClient {
 		this.tvService
 			.getCharacteristic(Characteristic.PowerModeSelection)
 			.on('set', (newValue, callback) => {
-				if (this.recv.poweredOn) {
+				if (this.recv.poweredOn[this.iterator]) {
 
 					request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + this.menuButton, function(error, response, body) {});
 				} 
@@ -781,13 +851,13 @@ class tvClient {
 		this.setupInputSourcesService();
 
 
-		logDebug('DEBUG: publishExternalAccessories: ' + this.name);
+		logDebug('DEBUG: publishExternalAccessories zone: ' + this.zone + ': ' + this.name);
 		this.api.publishExternalAccessories(pluginName, [this.tvAccesory]);
 	}
 
 	setupTvSpeakerService() {
 		if (traceOn)
-			logDebug('DEBUG: setupTvSpeakerService: ' + this.name);
+			logDebug('DEBUG: setupTvSpeakerService zone: ' + this.zone + ': ' + this.name);
 		this.tvSpeakerService = new Service.TelevisionSpeaker(this.name + ' Volume', 'tvSpeakerService');
 		this.tvSpeakerService
 			.setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE)
@@ -805,7 +875,7 @@ class tvClient {
 
 	setupInputSourcesService() {
 		if (traceOn)
-			logDebug('DEBUG: setupInputSourcesService: ' + this.name);
+			logDebug('DEBUG: setupInputSourcesService zone: ' + this.zone + ': ' + this.name);
 		if (this.inputs === undefined || this.inputs === null || this.inputs.length <= 0) {
 			return;
 		}
@@ -904,14 +974,17 @@ class tvClient {
 	}
 
 	setReceiverState(stateInfo) {
+		if (this.zone != stateInfo.zone)
+			return;
+
 		if (traceOn && setAVRState)
-			logDebug('DEBUG: setReceiverState: ' + this.name); 
+			logDebug('DEBUG: setReceiverState zone: ' + this.zone + ': ' + this.name); 
 		
 		if (stateInfo.power === true || stateInfo.power === false)
-			this.updateReceiverState(this.recv.poweredOn);
+			this.updateReceiverState(this.recv.poweredOn[this.iterator]);
 
 		if (stateInfo.inputID) {
-			if (this.recv.poweredOn) {
+			if (this.recv.poweredOn[this.iterator]) {
 				let inputName = stateInfo.inputID;
 				for (let i = 0; i < this.inputIDs.length; i++) {
 					if (inputName === this.inputIDs[i]) {
@@ -935,14 +1008,14 @@ class tvClient {
 	 ****************************************/
 	getPowerState(callback) {
 		if (traceOn)
-			logDebug('DEBUG: getPowerState: ' + this.name);
+			logDebug('DEBUG: getPowerState zone: ' + this.zone + ': ' + this.name);
 
-		callback(null, this.recv.poweredOn ? 1 : 0);
+		callback(null, this.recv.poweredOn[this.iterator] ? 1 : 0);
 	}
 
 	setPowerState(state, callback) {
 		if (traceOn)
-			logDebug('DEBUG: setPowerState state: ' + this.name);
+			logDebug('DEBUG: setPowerState zone: ' + this.zone + 'state: ' + this.name);
 
 		if (state === 0)
 			state = false;
@@ -954,7 +1027,7 @@ class tvClient {
 			var that = this;
 			var stateString = (state ? 'On' : 'Standby');
 
-			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?' + that.zone + 'Power' + stateString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 					logDebug('DEBUG: ' + error);
@@ -964,6 +1037,7 @@ class tvClient {
 				} else {
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
+						zone: that.zone,
 						power: state,
 						inputID: null,
 						masterVol: null,
@@ -975,11 +1049,17 @@ class tvClient {
 				}
 			});
 		} else {
-			var stateString = (state ? 'PWON' : 'PWSTANDBY');
+			var stateString;
+			if (this.zone == 1)
+				stateString = 'PW' + (state ? 'ON' : 'STANDBY');
+			else if (this.zone == 2 || this.zone == 3)
+				stateString = 'Z' + this.zone + (state ? 'ON' : 'OFF');
+			
 			this.recv.telnetConnection.send(stateString); 
 				
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
+				zone: this.zone,
 				power: state,
 				inputID: null,
 				masterVol: null,
@@ -1000,11 +1080,17 @@ class tvClient {
 
 	setVolumeSwitch(state, callback, isUp) {
 		if (traceOn)
-			logDebug('DEBUG: setVolumeSwitch: ' + this.name);
+			logDebug('DEBUG: setVolumeSwitch zone: ' + this.zone + ': ' + this.name);
+
+		var zoneString;
+		if (this.zone == 1) 
+			zoneString = 'MV';
+		else if (this.zone == 2 || this.zone == 3) 
+			zoneString = 'Z' + this.zone;
 
 		var that = this;
-		if (this.recv.poweredOn) {
-			var stateString = (isUp ? 'MVUP' : 'MVDOWN');
+		if (this.recv.poweredOn[this.iterator]) {
+			var stateString = zoneString + (isUp ? 'UP' : 'DOWN');
 						
 			if (this.recv.htmlControl) {	
 				request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
@@ -1024,10 +1110,10 @@ class tvClient {
 
 	getAppSwitchState(callback) {
 		if (traceOn)
-			logDebug('DEBUG: getAppSwitchState');
+			logDebug('DEBUG: getAppSwitchState zone: ' + this.zone);
 
-		if (this.recv.poweredOn) {
-			let inputName = this.recv.currentInputID;
+		if (this.recv.poweredOn[this.iterator]) {
+			let inputName = this.recv.currentInputID[this.iterator];
 			for (let i = 0; i < this.inputIDs.length; i++) {
 				if (inputName === this.inputIDs[i]) {
 					this.tvService
@@ -1041,11 +1127,9 @@ class tvClient {
 
 	setAppSwitchState(state, callback, inputName) {
 		if (traceOn)
-			logDebug('DEBUG: setAppSwitchState: ' + this.name);
+			logDebug('DEBUG: setAppSwitchState zone: ' + this.zone + ': ' + this.name);
 
-		this.inputIDSet = true;
-
-		let inputNameN = inputName.replace('/', '%2F');
+		this.inputIDSet = true;		
 
 		var level = this.defaultVolume[inputName];
 		var denonLevel;
@@ -1057,10 +1141,21 @@ class tvClient {
 				denonLevel = level.toString();
 		}
 
+		var inputString;
+		var volumeString;
+		let inputNameN = inputName.replace('/', '%2F');
+		if (this.zone == 1) {
+			inputString = 'SI' + inputNameN;
+			volumeString = 'MV';
+		} else if (this.zone == 2 || this.zone == 3) {
+			inputString = 'Z' + this.zone + inputNameN;
+			volumeString = 'Z' + this.zone;
+		}
+
 		var that = this;
 
 		if (this.recv.htmlControl) {
-			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?SI' + inputNameN, function(error, response, body) {
+			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + inputString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 					logDebug('DEBUG: ' + error);
@@ -1073,7 +1168,7 @@ class tvClient {
 					/* Set default volume if this is set */
 					if (level > 0) {
 						setTimeout(function(){
-							request('http://' + that.ip + ':' + that.tvServicePort + '/goform/formiPhoneAppDirect.xml?MV' + denonLevel, function(error, response, body) {
+							request('http://' + that.ip + ':' + that.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + volumeString + denonLevel, function(error, response, body) {
 								if(error) {
 									g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 									logDebug('DEBUG: ' + error);
@@ -1081,6 +1176,7 @@ class tvClient {
 								} else {
 									/* Update possible other switches and accessories too */
 									let stateInfo = {
+										zone: that.zone,
 										power: null,
 										inputID: null,
 										masterVol: level,
@@ -1094,7 +1190,8 @@ class tvClient {
 					}
 						/* Update possible other switches and accessories too */
 						let stateInfo = {
-							power: that.recv.poweredOn,
+							zone: that.zone,
+							power: that.recv.poweredOn[that.iterator],
 							inputID: inputName,
 							masterVol: null,
 							mute: null
@@ -1106,15 +1203,16 @@ class tvClient {
 			});
 		} else {
 
-			that.recv.telnetConnection.send('SI' + inputName);
+			that.recv.telnetConnection.send(inputString);
 
 			/* Set default volume if this is set */
 			if (level > 0) {
 				setTimeout(function(){
-					that.recv.telnetConnection.send('MV' + denonLevel);
+					that.recv.telnetConnection.send(volumeString + denonLevel);
 
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
+						zone: that.zone,
 						power: null,
 						inputID: null,
 						masterVol: level,
@@ -1127,7 +1225,8 @@ class tvClient {
 
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
-				power: that.recv.poweredOn,
+				zone: that.zone,
+				power: that.recv.poweredOn[that.iterator],
 				inputID: inputName,
 				masterVol: null,
 				mute: null
@@ -1179,7 +1278,7 @@ class tvClient {
 				break;
 		}
 
-		if (this.recv.poweredOn) {
+		if (this.recv.poweredOn[this.iterator]) {
 			if (this.recv.htmlControl)
 				request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + ctrlString, function(error, response, body) {});
 			else 
@@ -1214,6 +1313,8 @@ class legacyClient {
 		this.name = switches.name || 'Denon Input';
 		this.ip = switches.ip;
 		this.inputID = switches.inputID;
+		this.zone = switches.zone || 1;
+		this.iterator = this.zone - 1;
 		this.pollAllInput = switches.pollAllInput || false;
 
 		this.level = switches.defaultVolume;
@@ -1236,7 +1337,7 @@ class legacyClient {
 	 ****************************************/
 	setupLegacyService() {
 		if (traceOn)
-			logDebug('DEBUG: setupLegacyService: ' + this.name);
+			logDebug('DEBUG: setupLegacyService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
 		this.uuid = UUIDGen.generate(this.name+this.ip);
@@ -1284,8 +1385,11 @@ class legacyClient {
 	}
 
 	setReceiverState(stateInfo) {
+		if (this.zone != stateInfo.zone)
+			return;
+
 		if (traceOn && setAVRState)
-			logDebug('DEBUG: setReceiverState: ' + this.name);
+			logDebug('DEBUG: setReceiverState zone: ' + this.zone + ': ' + this.name);
 
 		if ((stateInfo.power === true || stateInfo.power === false) && stateInfo.inputID) {
 			if (stateInfo.power && (this.pollAllInput || stateInfo.inputID === this.inputID)) { 
@@ -1316,10 +1420,10 @@ class legacyClient {
 
 	getPowerStateLegacy(callback) {
 		if (traceOn)
-			logDebug('DEBUG: getPowerStateLegacy: ' + this.name);	
+			logDebug('DEBUG: getPowerStateLegacy zone: ' + this.zone + ': ' + this.name);	
 		
 		let switchState = false;
-		if (this.recv.poweredOn && (this.recv.currentInputID == this.inputID || this.pollAllInput))
+		if (this.recv.poweredOn[this.iterator] && (this.recv.currentInputID[this.iterator] == this.inputID || this.pollAllInput))
 			switchState = true
 		
 		callback(null, switchState);
@@ -1327,7 +1431,7 @@ class legacyClient {
 
 	setPowerStateLegacy(state, callback) {
 		if (traceOn)
-			logDebug('DEBUG: setPowerStateLegacy state: ' + this.name);
+			logDebug('DEBUG: setPowerStateLegacy zone: ' + this.zone + ' state: ' + this.name);
 
 		if (this.recv.htmlControl) {
 			this.setPowerStateHTML(state, callback);
@@ -1338,10 +1442,16 @@ class legacyClient {
 
 	setPowerStateHTML(state, callback) {
 		var stateString = (state ? 'On' : 'Standby');
+		var inputString;
+		if (this.zone == 1) {
+			inputString = 'MV';
+		} else if (this.zone == 2 || this.zone == 3) {
+			inputString = 'Z' + this.zone;
+		}
 
 		var that = this;
-		if (this.recv.poweredOn != state) {
-			request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?1+Power' + stateString, function(error, response, body) {
+		if (this.recv.poweredOn[this.iterator] != state) {
+			request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?' + that.zone + 'Power' + stateString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 					logDebug('DEBUG: ' + error);
@@ -1353,7 +1463,7 @@ class legacyClient {
 					let inputName = that.inputID;
 					inputName = inputName.replace('/', '%2F');
 
-					request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
+					request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + inputString + inputName, function(error, response, body) {
 						if(error) {
 							g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 							logDebug('DEBUG: ' + error);
@@ -1362,6 +1472,7 @@ class legacyClient {
 
 							/* Update possible other switches and accessories too */
 							let stateInfo = {
+								zone: that.zone,
 								power: state,
 								inputID: that.inputID,
 								masterVol: null,
@@ -1378,6 +1489,7 @@ class legacyClient {
 
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
+						zone: that.zone,
 						power: state,
 						inputID: that.inputID,
 						masterVol: null,
@@ -1394,7 +1506,7 @@ class legacyClient {
 			let inputName = that.inputID;
 			inputName = inputName.replace('/', '%2F');
 
-				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?SI' + inputName, function(error, response, body) {
+				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + inputString + inputName, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 					logDebug('DEBUG: ' + error);
@@ -1402,6 +1514,7 @@ class legacyClient {
 				} else {
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
+						zone: that.zone,
 						power: state,
 						inputID: that.inputID,
 						masterVol: null,
@@ -1418,17 +1531,29 @@ class legacyClient {
 	}
 
 	setPowerStateTelNet(state, callback) {
-		var stateString = (state ? 'PWON' : 'PWSTANDBY');
+		var stateString;
+		var inputString;
+		let inputName = this.inputID;
+		inputName = inputName.replace('/', '%2F');
 
+		if (this.zone == 1) {
+			inputString = 'SI' + inputName;
+			stateString = 'PW' + (state ? 'ON' : 'STANDBY');
+		} else if (this.zone == 2 || this.zone == 3) {
+			inputString = 'Z' + this.zone + inputName;
+			stateString = 'Z' + this.zone + (state ? 'ON' : 'OFF');
+		}
+		
 		var that = this;
-		if (this.recv.poweredOn != state) {
+		if (this.recv.poweredOn[this.iterator] != state) {
 			that.recv.telnetConnection.send(stateString);
 			/* Update possible other switches and accessories too */
 			if(state) {
 				/* Switch to correct input if switching on and legacy service */
-				that.recv.telnetConnection.send('SI' + that.inputID);
+				that.recv.telnetConnection.send(inputString);
 				/* Update possible other switches and accessories too */
 				let stateInfo = {
+					zone: that.zone,
 					power: state,
 					inputID: that.inputID,
 					masterVol: null,
@@ -1443,6 +1568,7 @@ class legacyClient {
 			} else {
 				/* Update possible other switches and accessories too */
 				let stateInfo = {
+					zone: that.zone,
 					power: state,
 					inputID: that.inputID,
 					masterVol: null,
@@ -1455,9 +1581,10 @@ class legacyClient {
 				callback();
 			}
 		} else {
-			that.recv.telnetConnection.send('SI' + that.inputID);
+			that.recv.telnetConnection.send(inputString);
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
+				zone: that.zone,
 				power: state,
 				inputID: that.inputID,
 				masterVol: null,
@@ -1472,10 +1599,16 @@ class legacyClient {
 	}
 
 	setDefaultVolume(that) {
+		var volumeString;
+		if (this.zone == 1)
+			volumeString = 'MV';
+		else if (this.zone == 2 || this.zone == 3)
+			volumeString = 'Z' + this.zone;
+			
 		/* Set default volume if this is set */
 		if (that.recv.htmlControl) {
 			setTimeout(function(){
-				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?MV' + that.denonLevel, function(error, response, body) {
+				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + volumeString + that.denonLevel, function(error, response, body) {
 					if(error) {
 						g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 						logDebug('DEBUG: ' + error);
@@ -1483,6 +1616,7 @@ class legacyClient {
 					} else {
 						/* Update possible other switches and accessories too */
 						let stateInfo = {
+							zone: that.zone,
 							power: null,
 							inputID: null,
 							masterVol: that.level,
@@ -1495,10 +1629,11 @@ class legacyClient {
 		} else {		
 			if (that.level > 0) {
 				setTimeout(function(){
-					that.recv.telnetConnection.send('MV' + that.denonLevel);
+					that.recv.telnetConnection.send(volumeString + that.denonLevel);
 
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
+						zone: that.zone,
 						power: null,
 						inputID: null,
 						masterVol: that.level,
@@ -1560,15 +1695,14 @@ class volumeClient {
 		// configuration
 		this.name = volumeControl.name || 'Denon Input';
 		this.ip = volumeControl.ip;
+		this.zone = volumeControl.zone || 1;
+		this.iterator = this.zone - 1;
 
 		this.volumeLimit = volumeControl.volumeLimit || 100;
 		if (typeof this.volumeLimit != 'number' || isFinite(this.volumeLimit))
 			this.volumeLimit = parseInt(this.volumeLimit);
 		if (this.volumeLimit < 0 || this.volumeLimit > 100)
 			this.volumeLimit = 100;
-
-		this.volume = 30;
-		this.muteState = false;
 
 		this.setupVolumeService();
 	}
@@ -1578,7 +1712,7 @@ class volumeClient {
 	 ****************************************/
 	setupVolumeService() {
 		if (traceOn)
-			logDebug('DEBUG: setupVolumeService: ' + this.name);
+			logDebug('DEBUG: setupVolumeService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
 		this.uuid = UUIDGen.generate(this.name+this.ip);
@@ -1633,21 +1767,24 @@ class volumeClient {
 	}
 
 	setReceiverState(stateInfo) {
+		if (this.zone != stateInfo.zone)
+			return;
+
 		if (traceOn && setAVRState)
-			logDebug('DEBUG: setReceiverState: ' + this.name);
+			logDebug('DEBUG: setReceiverState zone: ' + this.zone + ': ' + this.name);
 
 		if (stateInfo.masterVol) {
 			this.accessory
 					.getService(Service.Lightbulb)
 					.getCharacteristic(Characteristic.Brightness)
-					.updateValue(this.recv.volumeLevel);
+					.updateValue(this.recv.volumeLevel[this.iterator]);
 		}
-		if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn) {
+		if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
 			this.accessory
 					.getService(Service.Lightbulb)
 					.getCharacteristic(Characteristic.On)
-					.updateValue(!this.recv.muteState);
-		} else if (!this.recv.poweredOn) {
+					.updateValue(!this.recv.muteState[this.iterator]);
+		} else if (!this.recv.poweredOn[this.iterator]) {
 			this.accessory
 					.getService(Service.Lightbulb)
 					.getCharacteristic(Characteristic.On)
@@ -1659,8 +1796,8 @@ class volumeClient {
 		if (traceOn)
 			logDebug('DEBUG: getMuteState: ' + this.name);
 
-		if (this.recv.poweredOn) {
-			callback(null, !this.recv.muteState);
+		if (this.recv.poweredOn[this.iterator]) {
+			callback(null, !this.recv.muteState[this.iterator]);
 		} else {
 			callback(null, false);
 		}
@@ -1668,9 +1805,13 @@ class volumeClient {
 
 	setMuteState(state, callback) {
 		if (traceOn)
-			logDebug('DEBUG: setMuteState: ' + this.name);
+			logDebug('DEBUG: setMuteState zone: ' + this.zone + ': ' + this.name);
 
-		var stateString = (state ? 'MUOFF' : 'MUON');
+		var stateString;
+		if (this.zone == 1)
+			stateString = (state ? 'MUOFF' : 'MUON');
+		else if (this.zone == 2 || this.zone == 3)
+			stateString = 'Z' + this.zone + 'MU' + (state ? 'OFF' : 'ON');
 
 		var that = this;
 
@@ -1684,6 +1825,7 @@ class volumeClient {
 					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else {
 					let stateInfo = {
+						zone: that.zone,
 						power: null,
 						inputID: null,
 						masterVol: null,
@@ -1698,6 +1840,7 @@ class volumeClient {
 			that.recv.telnetConnection.send(stateString);
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
+				zone: that.zone,
 				power: null,
 				inputID: null,
 				masterVol: null,
@@ -1711,10 +1854,10 @@ class volumeClient {
 
 	getVolume(callback) {
 		if (traceOn)
-			logDebug('DEBUG: getVolume: ' + this.name);
+			logDebug('DEBUG: getVolume zone: ' + this.zone + ': ' + this.name);
 
-		if (this.recv.poweredOn) {
-			callback(null, this.recv.volumeLevel);
+		if (this.recv.poweredOn[this.iterator]) {
+			callback(null, this.recv.volumeLevel[this.iterator]);
 		} else {
 			callback(null, 0);
 		}
@@ -1727,7 +1870,7 @@ class volumeClient {
 		if (traceOn)
 			logDebug('DEBUG: setVolume: ' + this.name + ' to :' + level);
 
-		this.recv.volumeLevel = level;
+		this.recv.volumeLevel[this.iterator] = level;
 		
 		var that = this;
 		var denonLevel;
@@ -1736,8 +1879,14 @@ class volumeClient {
 		else
 			denonLevel = level.toString();
 
+		var zoneSettings;
+		if (this.zone == 1)
+			zoneSettings = 'MV';
+		else if (this.zone == 2 || this.zone == 3)
+			zoneSettings = 'Z' + this.zone;
+
 		if (this.recv.htmlControl) {
-			request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?MV' + denonLevel, function(error, response, body) {
+			request('http://' + that.ip + ':' + this.volumePort + '/goform/formiPhoneAppDirect.xml?' + zoneSettings + denonLevel, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.volumePort);
 					logDebug('DEBUG: ' + error);
@@ -1747,6 +1896,7 @@ class volumeClient {
 				} else {
 					/* Update possible other switches and accessories too */
 					let stateInfo = {
+						zone: that.zone,
 						power: null,
 						inputID: null,
 						masterVol: level,
@@ -1758,9 +1908,10 @@ class volumeClient {
 				}
 			});
 		} else {
-			that.recv.telnetConnection.send('MV' + denonLevel);
+			that.recv.telnetConnection.send(zoneSettings + denonLevel);
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
+				zone: that.zone,
 				power: null,
 				inputID: null,
 				masterVol: level,
