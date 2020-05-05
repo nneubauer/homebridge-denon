@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.5.4';
+const pluginVersion = '2.6.0';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;

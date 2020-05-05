@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.6.0] - 2020-05-05
+### Added
+- Support for a second and third zone
+
+## [2.5.4] - 2020-04-30
+### Fixed
+- Hotfix for crashing at startup
+
+## [2.5.3] - 2020-04-30
+### Fixed
+- Fixed default values in config.schema
+
+## [2.5.2] - 2020-04-27
+### Fixed
+- Fixed dependencies for validation process
+
+## [2.5.1] - 2020-04-27
+### Fixed
+- Fixed starting wihout config setup
+
 ## [2.5.0] - 2020-04-27
 ### Added
 - Support for Homebridge Config UI X
