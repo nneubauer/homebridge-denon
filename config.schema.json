@@ -67,6 +67,14 @@
 								}
 							]
 						},
+						"zone": {
+							"title": "Zone",
+							"description": "Set if you want to use a specific zone.",
+							"type": "integer",
+							"default": 1,
+							"required": false,
+							"maximum": 3
+						},
 						"switchInfoMenu": {
 							"title": "Switch Info/Menu button.",
 							"description": "This will switch the functionality of the info and the menu button. This will enable the possibility to go to the menu from the remote widget.",
@@ -185,6 +193,14 @@
 								}
 							]
 						},
+						"zone": {
+							"title": "Zone",
+							"description": "Set if you want to use a specific zone.",
+							"type": "integer",
+							"default": 1,
+							"required": false,
+							"maximum": 3
+						},
 						"inputID": {
 							"title": "Input ID",
 							"description": "The list with used inputs. If you don't know what input ID's are used, go to https://github.com/Martvvliet/homebridge-denon-heos for more information on retrieving the correct names.",
@@ -260,6 +276,14 @@
 							"format": "ipv4",
 							"required": true,
 							"minLength": 4
+						},
+						"zone": {
+							"title": "Zone",
+							"description": "Set if you want to use a specific zone.",
+							"type": "integer",
+							"default": 1,
+							"required": false,
+							"maximum": 3
 						},
 						"port": {
 							"title": "Port",

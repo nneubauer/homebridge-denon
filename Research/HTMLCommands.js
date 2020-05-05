@@ -33,3 +33,23 @@
 
 
 // http://192.168.1.45:8080/goform/formMainZone_MainZoneXmlStatusLite.xml
+
+
+/* Volume items */
+/* Mute */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2MUON
+/* Unmute */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2MUOFF
+/* “Volume Up” Control */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2UP
+/* “Volume Down” Control */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2DOWN
+/* Set absolute volume level */
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2495
+
+// http://192.168.1.45:8080/goform/formiPhoneAppPower.xml?2+PowerOn
+// http://192.168.1.45:8080/goform/formiPhoneAppPower.xml?2+PowerStandby
+// http://192.168.1.45:8080/goform/formZone2_Zone2XmlStatusLite.xml
+
+
+http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2ON

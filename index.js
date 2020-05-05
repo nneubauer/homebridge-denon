@@ -437,13 +437,11 @@ class receiver {
 		var that = this;
 
 		if (this.htmlControl) {
-			var requestString;
+			var requestString
 			if (zone == 1) 
 				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formMainZone_MainZoneXmlStatusLite.xml';
-			else if (zone == 2) 
-				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formZone2_Zone2XmlStatusLite.xml';
-			else if (zone == 3) 
-				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formZone3_Zone3XmlStatusLite.xml';
+			else if (zone == 2 || zone == 3) 
+				requestString = 'http://' + that.ip + ':' + this.webAPIPort + '/goform/formZone' + zone + '_Zone' + zone + 'XmlStatusLite.xml';
 			
 			
 			request(requestString, function(error, response, body) {
@@ -779,6 +777,8 @@ class tvClient {
 		this.ip = device.ip;
 		this.inputs = device.inputs;
 		this.zone = device.zone || 1;
+		if (this.zone < 1 || this.zone > 3)
+			zone = 1;
 		this.iterator = this.zone - 1;
 		this.defaultVolume = {};
 		
@@ -1027,7 +1027,7 @@ class tvClient {
 			var that = this;
 			var stateString = (state ? 'On' : 'Standby');
 
-			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?' + that.zone + 'Power' + stateString, function(error, response, body) {
+			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppPower.xml?' + that.zone + '+Power' + stateString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
 					logDebug('DEBUG: ' + error);
@@ -1314,6 +1314,8 @@ class legacyClient {
 		this.ip = switches.ip;
 		this.inputID = switches.inputID;
 		this.zone = switches.zone || 1;
+		if (this.zone < 1 || this.zone > 3)
+			zone = 1;
 		this.iterator = this.zone - 1;
 		this.pollAllInput = switches.pollAllInput || false;
 
@@ -1448,10 +1450,10 @@ class legacyClient {
 		} else if (this.zone == 2 || this.zone == 3) {
 			inputString = 'Z' + this.zone;
 		}
-
+		
 		var that = this;
 		if (this.recv.poweredOn[this.iterator] != state) {
-			request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?' + that.zone + 'Power' + stateString, function(error, response, body) {
+			request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?' + that.zone + '+Power' + stateString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 					logDebug('DEBUG: ' + error);
@@ -1696,6 +1698,8 @@ class volumeClient {
 		this.name = volumeControl.name || 'Denon Input';
 		this.ip = volumeControl.ip;
 		this.zone = volumeControl.zone || 1;
+		if (this.zone < 1 || this.zone > 3)
+			zone = 1;
 		this.iterator = this.zone - 1;
 
 		this.volumeLimit = volumeControl.volumeLimit || 100;
