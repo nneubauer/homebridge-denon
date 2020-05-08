@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.6.0';
+const pluginVersion = '2.6.2';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -69,7 +69,7 @@ class denonClient {
 
 		/* Stop loading if plugin is not configured */
 		if (!config || (!Array.isArray(config.devices) && !Array.isArray(config.switches) && !Array.isArray(config.volumeControl))) {
-			g_log.warn("No config settings found for homebridge-denon-heos plugin.")
+			g_log.warn("WARNING: No config settings found for homebridge-denon-heos plugin.")
 			return;
 		}
 
@@ -138,7 +138,7 @@ class denonClient {
 		try {
 			this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
 		} catch {
-			g_log.error("Could not unregister accessory with name: %s", platformAccessory.context.name);
+			g_log.error("ERROR: Could not unregister accessory with name: %s", platformAccessory.context.name);
 		}
 	}
 	removeCachedAccessory(){
@@ -149,7 +149,7 @@ class denonClient {
 		try {
 			this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
 		} catch {
-			g_log.error("Could not unregister accessories.");
+			g_log.error("ERROR: Could not unregister accessories.");
 		}
 	}
 }
@@ -357,14 +357,14 @@ class receiver {
 			if (this.switches[i].ip === this.ip) {
 				try {
 					if (this.switchesDuplicates[this.switches[i].name]) {
-						g_log.error("A Switch with the name: %s and ip: %s is already added.", this.switches[i].name, this.switches[i].ip);
+						g_log.warn("WARNING: A Switch with the name: %s and ip: %s is already added. It will be ignored.", this.switches[i].name, this.switches[i].ip);
 						continue;
 					} else {
 						this.switchesDuplicates[this.switches[i].name] = true;
 						this.legacyAccessories.push(new legacyClient(this, this.switches[i]));
 					}
 				} catch {
-					g_log.error("Could not add Switch accessory.");
+					g_log.error("ERROR: Could not add Switch accessory.");
 				}
 			}
 		}
@@ -374,14 +374,14 @@ class receiver {
 			if (this.devices[i].ip === this.ip) {
 				try {
 					if (this.devicesDuplicates[this.devices[i].name]) {
-						g_log.error("A Device with the name: %s and ip: %s is already added.", this.devices[i].name, this.devices[i].ip);
+						g_log.error("WARNING: A Device with the name: %s and ip: %s is already added. It will be ignored.", this.devices[i].name, this.devices[i].ip);
 						continue;
 					} else {
 						this.devicesDuplicates[this.devices[i].name] = true;
 						this.tvAccessories.push(new tvClient(this, this.devices[i]));
 					}
 				} catch {
-					g_log.error("Could not add TV accessory.");
+					g_log.error("ERROR: Could not add TV accessory.");
 				}
 			}
 		}
@@ -391,7 +391,7 @@ class receiver {
 			if (this.volumeControl[i].ip === this.ip) {
 				try {
 					if (this.volumeCtrlDuplicates[this.volumeControl[i].name]) {
-						g_log.error("A Volume control with the name: %s and ip: %s is already added.", this.volumeControl[i].name, this.volumeControl[i].ip);
+						g_log.error("WARNING: A Volume control with the name: %s and ip: %s is already added. It will be ignored.", this.volumeControl[i].name, this.volumeControl[i].ip);
 						continue;
 					} else {
 						this.volumeCtrlDuplicates[this.volumeControl[i].name] = true;
@@ -399,7 +399,7 @@ class receiver {
 					}
 					
 				} catch {
-					g_log.error("Could not add Volume control accessory.");
+					g_log.error("ERROR: Could not add Volume control accessory.");
 				}
 			}
 		}
@@ -1151,7 +1151,6 @@ class tvClient {
 			inputString = 'Z' + this.zone + inputNameN;
 			volumeString = 'Z' + this.zone;
 		}
-
 		var that = this;
 
 		if (this.recv.htmlControl) {
@@ -1370,12 +1369,11 @@ class legacyClient {
 				.setCharacteristic(Characteristic.FirmwareRevision, this.firmwareRevision);
 
 			this.accessory.addService(this.switchService);
-			// g_log.warn(this.name);
-			// g_log.info(this.uuid);
+
 			try {
 				this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
 			} catch {
-				g_log.error("Could not register switch with name: %s", this.accessory.context.name);
+				g_log.error("ERROR: Could not register switch with name: %s", this.accessory.context.name);
 			}
 		} else {
 			this.accessory
@@ -1445,15 +1443,15 @@ class legacyClient {
 	setPowerStateHTML(state, callback) {
 		var stateString = (state ? 'On' : 'Standby');
 		var inputString;
+		let inputNameN = this.inputID.replace('/', '%2F');
 		if (this.zone == 1) {
-			inputString = 'MV';
+			inputString = 'SI' + inputNameN;
 		} else if (this.zone == 2 || this.zone == 3) {
-			inputString = 'Z' + this.zone;
+			inputString = 'Z' + this.zone + inputNameN;
 		}
-		
 		var that = this;
 		if (this.recv.poweredOn[this.iterator] != state) {
-			request('http://' + that.ip + ':' + this.legacyPort + '/goform/formiPhoneAppPower.xml?' + that.zone + '+Power' + stateString, function(error, response, body) {
+			request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppPower.xml?' + that.zone + '+Power' + stateString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 					logDebug('DEBUG: ' + error);
@@ -1462,10 +1460,7 @@ class legacyClient {
 					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else if(state) {
 					/* Switch to correct input if switching on and legacy service */
-					let inputName = that.inputID;
-					inputName = inputName.replace('/', '%2F');
-
-					request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + inputString + inputName, function(error, response, body) {
+					request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + inputString, function(error, response, body) {
 						if(error) {
 							g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 							logDebug('DEBUG: ' + error);
@@ -1505,10 +1500,7 @@ class legacyClient {
 				}
 			});
 		} else {
-			let inputName = that.inputID;
-			inputName = inputName.replace('/', '%2F');
-
-				request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + inputString + inputName, function(error, response, body) {
+			request('http://' + that.ip + ':' + that.legacyPort + '/goform/formiPhoneAppDirect.xml?' + inputString, function(error, response, body) {
 				if(error) {
 					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
 					logDebug('DEBUG: ' + error);
@@ -1662,7 +1654,7 @@ class legacyClient {
 					try {
 						this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
 					} catch {
-						g_log.error("Could not unregister switch with name: %s", cachedAccessories[i].context.name);
+						g_log.error("ERROR: Could not unregister switch with name: %s", cachedAccessories[i].context.name);
 					}
 					cachedAccessories.splice(i,1);
 					return false;
@@ -1754,7 +1746,7 @@ class volumeClient {
 			try {
 				this.api.registerPlatformAccessories(pluginName, platformName, [this.accessory]);
 			} catch {
-				g_log.error("Could not register volume control with name: %s", this.accessory.context.name);
+				g_log.error("ERROR: Could not register volume control with name: %s", this.accessory.context.name);
 			}
 		} else {
 			this.accessory
@@ -1940,7 +1932,7 @@ class volumeClient {
 					try {
 						this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
 					} catch {
-						g_log.error("Could not register volume control with name: %s", cachedAccessories[i].context.name);
+						g_log.error("ERROR: Could not register volume control with name: %s", cachedAccessories[i].context.name);
 					}
 					cachedAccessories.splice(i,1);
 					return false;
