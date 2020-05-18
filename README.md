@@ -76,7 +76,7 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 See sample-config.json for a complete sample JSON file. It is possible to add switches and tv services at the same time in one platform. The `pollInterval` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
 
 ### TV Accessories
-TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the JSON doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. `zone` can be set if you want to control the second or the third zone. Default is 1. The available inputs for zone 2 are different than for zone 1. `port` is optional and its standard value is `"auto"`. You can set `defaultVolume` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the JSON doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. When the `defaultInputID` is set, it will automatically select that input when starting up the receiver. After that input is set, the default volume wil be triggered too. `zone` can be set if you want to control the second or the third zone. Default is 1. The available inputs for zone 2 are different than for zone 1. `port` is optional and its standard value is `"auto"`. You can set `defaultVolume` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 
 ```json
 {
@@ -87,6 +87,7 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
             "name": "Denon Receiver",
             "ip": "192.168.1.45",
             "switchInfoMenu": true,
+            "defaultInputID": "MPLAY",
 			"zone": 1,
             "port": 8080,
             "inputs": [{
@@ -215,9 +216,10 @@ Thanks to [nneubauers](https://github.com/nneubauer) for making a stable version
 ## Future work
 
 * Improve volume control for the remote widget.
-* Add support for multi-zone.
 * Add option for auto-discovery IP address.
+* ~~Add support for multi-zone.~~
 * ~~Add default volume levels for specific inputs.~~
+* ~~Add default inputID.~~
 * ~~Improve updating state of the multiple switches when changing one.~~
 * ~~Improve polling code for more efficiency.~~
 * ~~Add volume control with a Light Bulb for Siri volume control.~~

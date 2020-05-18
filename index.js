@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.6.2';
+const pluginVersion = '2.7.1';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -791,9 +791,13 @@ class tvClient {
 			this.menuButton = settingsMenu;
 		}
 
+		this.defaultInputID = device.defaultInputID;
+
 		/* setup variables */
 		this.inputIDSet = false;
 		this.inputIDs = new Array();
+
+		this.setDefaultInputTimeout;
 		
 		/* Delay to wait for retrieve device info */
 		this.setupTvService();
@@ -1035,17 +1039,24 @@ class tvClient {
 				} else if (body.indexOf('Error 403: Forbidden') === 0) {
 					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else {
-					/* Update possible other switches and accessories too */
-					let stateInfo = {
-						zone: that.zone,
-						power: state,
-						inputID: null,
-						masterVol: null,
-						mute: null
-					}
-					that.recv.updateStates(that.recv, stateInfo, that.name);
+					if (state && that.defaultInputID != undefined && that.defaultInputID != "None") {				
+						that.setDefaultInputTimeout = setTimeout(function(){
+							that.setAppSwitchState(state, callback, that.defaultInputID);
+						}, 8000);
+					} else {
+						clearTimeout(that.setDefaultInputTimeout);
+						/* Update possible other switches and accessories too */
+						let stateInfo = {
+							zone: that.zone,
+							power: state,
+							inputID: null,
+							masterVol: null,
+							mute: null
+						}
+						that.recv.updateStates(that.recv, stateInfo, that.name);
 
-					callback();
+						callback();
+					}
 				}
 			});
 		} else {
@@ -1132,14 +1143,6 @@ class tvClient {
 		this.inputIDSet = true;		
 
 		var level = this.defaultVolume[inputName];
-		var denonLevel;
-
-		if (level > 0) {
-			if (level < 10)
-				denonLevel = '0' + level.toString();
-			else
-				denonLevel = level.toString();
-		}
 
 		var inputString;
 		var volumeString;
@@ -1151,6 +1154,7 @@ class tvClient {
 			inputString = 'Z' + this.zone + inputNameN;
 			volumeString = 'Z' + this.zone;
 		}
+
 		var that = this;
 
 		if (this.recv.htmlControl) {
@@ -1165,37 +1169,18 @@ class tvClient {
 					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
 				} else {
 					/* Set default volume if this is set */
-					if (level > 0) {
-						setTimeout(function(){
-							request('http://' + that.ip + ':' + that.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + volumeString + denonLevel, function(error, response, body) {
-								if(error) {
-									g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
-									logDebug('DEBUG: ' + error);
-									callback(error);
-								} else {
-									/* Update possible other switches and accessories too */
-									let stateInfo = {
-										zone: that.zone,
-										power: null,
-										inputID: null,
-										masterVol: level,
-										mute: null
-									}
-									that.recv.updateStates(that.recv, stateInfo, that.name);
-
-								}
-							});
-						}, 2000);
+					if (level > 0) 
+						that.setDefaultVolume(that, level, volumeString);
+					
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						zone: that.zone,
+						power: that.recv.poweredOn[that.iterator],
+						inputID: inputName,
+						masterVol: null,
+						mute: null
 					}
-						/* Update possible other switches and accessories too */
-						let stateInfo = {
-							zone: that.zone,
-							power: that.recv.poweredOn[that.iterator],
-							inputID: inputName,
-							masterVol: null,
-							mute: null
-						}
-						that.recv.updateStates(that.recv, stateInfo, that.name);
+					that.recv.updateStates(that.recv, stateInfo, that.name);
 
 					callback();
 				}
@@ -1205,23 +1190,9 @@ class tvClient {
 			that.recv.telnetConnection.send(inputString);
 
 			/* Set default volume if this is set */
-			if (level > 0) {
-				setTimeout(function(){
-					that.recv.telnetConnection.send(volumeString + denonLevel);
-
-					/* Update possible other switches and accessories too */
-					let stateInfo = {
-						zone: that.zone,
-						power: null,
-						inputID: null,
-						masterVol: level,
-						mute: null
-					}
-
-					that.recv.updateStates(that.recv, stateInfo, that.name);
-				}, 2000);
-			}
-
+			if (level > 0) 
+				that.setDefaultVolume(that, level, volumeString);
+			
 			/* Update possible other switches and accessories too */
 			let stateInfo = {
 				zone: that.zone,
@@ -1233,6 +1204,52 @@ class tvClient {
 			that.recv.updateStates(that.recv, stateInfo, that.name);
 
 			callback();
+		}
+	}
+
+	setDefaultVolume(that, level, volumeString) {
+ 		if (level < 10)
+		 	volumeString = volumeString + '0' + level.toString();
+		else
+		volumeString = volumeString + level.toString();
+
+		/* Set default volume if this is set */
+		if (that.recv.htmlControl) {
+			setTimeout(function(){
+				request('http://' + that.ip + ':' + that.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + volumeString, function(error, response, body) {
+					if(error) {
+						g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.legacyPort);
+						logDebug('DEBUG: ' + error);
+						callback(error);
+					} else {
+						/* Update possible other switches and accessories too */
+						let stateInfo = {
+							zone: that.zone,
+							power: null,
+							inputID: null,
+							masterVol: parseInt(level),
+							mute: null
+						}
+						that.recv.updateStates(that.recv, stateInfo, that.name);
+					}
+				});
+			}, 2000);
+		} else {		
+			if (level > 0) {
+				setTimeout(function(){
+					that.recv.telnetConnection.send(volumeString);
+
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						zone: that.zone,
+						power: null,
+						inputID: null,
+						masterVol: parseInt(level),
+						mute: null
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+				}, 2000);
+			}
 		}
 	}
 

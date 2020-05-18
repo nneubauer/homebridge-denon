@@ -82,6 +82,41 @@
 							"default": true,
 							"required": true
 						},
+						"defaultInputID": {
+							"title": "Default InputID",
+							"type": "string",
+							"placeholder": "None",
+							"required": false,
+							"typeahead": {
+								"source": [
+									"MPLAY",
+									"GAME",
+									"TV",
+									"CD",
+									"SPOTIFY",
+									"NET",
+									"CBL/SAT",
+									"SAT/CBL",
+									"DVD",
+									"BD",
+									"GAME2",
+									"AUX1",
+									"USB/IPOD",
+									"TUNER",
+									"NETWORK",
+									"IRADIO",
+									"DOCK",
+									"IPOD",
+									"NET/USB",
+									"RHAPSODY",
+									"PANDORA",
+									"LASTFM",
+									"IRP",
+									"FAVORITES",
+									"SERVER"
+								]
+							}
+						},
 						"inputs": {
 							"title": "List with selectable inputs",
 							"description": "The list with used inputs. If you don't know what input ID's are used, go to https://github.com/Martvvliet/homebridge-denon-heos for more information on retrieving the correct names.",

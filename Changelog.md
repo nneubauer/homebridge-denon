@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.7.1] - 2020-05-18
+### Added
+- Support for a default input select TV client
+
+## [2.6.2] - 2020-05-08
+### Fixed
+- Fixed setting input with switches and log update.
+
 ## [2.6.0] - 2020-05-05
 ### Added
 - Support for a second and third zone
