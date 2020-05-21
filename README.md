@@ -93,7 +93,7 @@ TV accessories are added as devices. The `"switchInfoMenu"` can be set to true i
             "inputs": [{
                 "inputID": "MPLAY",
                 "name": "Apple TV",
-				"defaultVolume": 32
+		"defaultVolume": 32
             },
             {
                 "inputID": "GAME",
@@ -130,12 +130,12 @@ Set `"pollAllInput"` to true if you want a main switch to turn off the receiver 
             "name": "AVR on iMac",
             "ip": "192.168.1.45",
             "inputID": "GAME",
-			"defaultVolume": 35
+	    "defaultVolume": 35
         },
         {
             "name": "AVR Zone 2",
             "ip": "192.168.1.45",
-			"zone": 2,
+	    "zone": 2,
             "inputID": "TUNER"
         }]
     }]
@@ -153,7 +153,7 @@ Volume control accessories are added as volumeControl. The `"volumeLimit"` is th
             "name": "Receiver Volume",
             "ip": "192.168.1.45",
             "volumeLimit": 60,
-			"zone": 1,
+	    "zone": 1,
             "volumeAsFan": false,
             "port": 8080
         }]
