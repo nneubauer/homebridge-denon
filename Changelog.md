@@ -13,12 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.8.1] - 2020-05-21
+### Fixed
+- Fixed wrong debug info
+
 ## [2.8.0] - 2020-05-21
 ### Added
 - Support for volume control as fan instead of a lightbulb
 
 ### Fixed
-- Improved handling of cached accessories.
+- Improved handling of cached accessories
 
 ## [2.7.1] - 2020-05-18
 ### Added
@@ -26,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.6.2] - 2020-05-08
 ### Fixed
-- Fixed setting input with switches and log update.
+- Fixed setting input with switches and log update
 
 ## [2.6.0] - 2020-05-05
 ### Added
