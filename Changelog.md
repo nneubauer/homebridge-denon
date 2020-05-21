@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.8.0] - 2020-05-21
+### Added
+- Support for volume control as fan instead of a lightbulb
+
+### Fixed
+- Improved handling of cached accessories.
+
 ## [2.7.1] - 2020-05-18
 ### Added
 - Support for a default input select TV client

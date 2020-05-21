@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.7.1';
+const pluginVersion = '2.8.0';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -374,7 +374,7 @@ class receiver {
 			if (this.devices[i].ip === this.ip) {
 				try {
 					if (this.devicesDuplicates[this.devices[i].name]) {
-						g_log.error("WARNING: A Device with the name: %s and ip: %s is already added. It will be ignored.", this.devices[i].name, this.devices[i].ip);
+						g_log.warn("WARNING: A Device with the name: %s and ip: %s is already added. It will be ignored.", this.devices[i].name, this.devices[i].ip);
 						continue;
 					} else {
 						this.devicesDuplicates[this.devices[i].name] = true;
@@ -391,13 +391,12 @@ class receiver {
 			if (this.volumeControl[i].ip === this.ip) {
 				try {
 					if (this.volumeCtrlDuplicates[this.volumeControl[i].name]) {
-						g_log.error("WARNING: A Volume control with the name: %s and ip: %s is already added. It will be ignored.", this.volumeControl[i].name, this.volumeControl[i].ip);
+						g_log.warn("WARNING: A Volume control with the name: %s and ip: %s is already added. It will be ignored.", this.volumeControl[i].name, this.volumeControl[i].ip);
 						continue;
 					} else {
 						this.volumeCtrlDuplicates[this.volumeControl[i].name] = true;
 						this.volumeAccessories.push(new volumeClient(this, this.volumeControl[i]));
 					}
-					
 				} catch {
 					g_log.error("ERROR: Could not add Volume control accessory.");
 				}
@@ -811,7 +810,7 @@ class tvClient {
 		if (traceOn)
 			logDebug('DEBUG: setupTvService zone: ' + this.zone + ': ' + this.name);
 
-		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip + this.name));
+		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip+this.name+"tvService"));
 
 		this.tvService = new Service.Television(this.name, 'tvService');
 		this.tvService
@@ -1358,7 +1357,7 @@ class legacyClient {
 			logDebug('DEBUG: setupLegacyService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
-		this.uuid = UUIDGen.generate(this.name+this.ip);
+		this.uuid = UUIDGen.generate(this.name+this.ip+"switch");
 
 		this.accessory =  new Accessory(this.name, this.uuid);
 
@@ -1372,6 +1371,7 @@ class legacyClient {
 
 		let isCached = this.testCachedAccessories();
 		if (!isCached) {
+			g_log("New switch configured: " + this.name);
 			this.switchService = new Service.Switch(this.name, 'legacyInput');
 			this.switchService
 				.getCharacteristic(Characteristic.On)
@@ -1659,22 +1659,10 @@ class legacyClient {
 	testCachedAccessories() {
 		for (let i in cachedAccessories) {
 			if (cachedAccessories[i].context.subtype == 'legacyInput') {
-				if (cachedAccessories[i].context.name === this.accessory.context.name && 
-					cachedAccessories[i].context.ip === this.accessory.context.ip && 
-					cachedAccessories[i].context.inputID === this.accessory.context.inputID && 
-					cachedAccessories[i].context.pollAllInput === this.accessory.context.pollAllInput) {
+				if (this.uuid == cachedAccessories[i].UUID) {
 					this.accessory = cachedAccessories[i];
 					cachedAccessories.splice(i,1);
 					return true;
-				}
-				if (this.uuid == cachedAccessories[i].UUID) {
-					try {
-						this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
-					} catch {
-						g_log.error("ERROR: Could not unregister switch with name: %s", cachedAccessories[i].context.name);
-					}
-					cachedAccessories.splice(i,1);
-					return false;
 				}
 			}
 		}
@@ -1717,6 +1705,8 @@ class volumeClient {
 		if (this.volumeLimit < 0 || this.volumeLimit > 100)
 			this.volumeLimit = 100;
 
+		this.volumeAsFan = volumeControl.volumeAsFan || false;
+
 		this.setupVolumeService();
 	}
 
@@ -1728,7 +1718,7 @@ class volumeClient {
 			logDebug('DEBUG: setupVolumeService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
-		this.uuid = UUIDGen.generate(this.name+this.ip);
+		this.uuid = UUIDGen.generate(this.name+this.ip+this.volumeAsFan+"volumeControl");
 
 		this.accessory =  new Accessory(this.name, this.uuid);
 
@@ -1741,15 +1731,28 @@ class volumeClient {
 
 		let isCached = this.testCachedAccessories();
 		if (!isCached) {
-			this.volumeService = new Service.Lightbulb(this.name, 'volumeInput');
-			this.volumeService
-				.getCharacteristic(Characteristic.On)
-				.on('get', this.getMuteState.bind(this))
-				.on('set', this.setMuteState.bind(this));
-			this.volumeService
-				.addCharacteristic(new Characteristic.Brightness())
-				.on('get', this.getVolume.bind(this))
-				.on('set', this.setVolume.bind(this));
+			g_log("New volumeControl configured: " + this.name);
+			if (this.volumeAsFan){
+				this.volumeService = new Service.Fanv2(this.name, 'volumeInput');
+				this.volumeService
+					.getCharacteristic(Characteristic.Active)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.volumeService
+					.addCharacteristic(new Characteristic.RotationSpeed())
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			} else {
+				this.volumeService = new Service.Lightbulb(this.name, 'volumeInput');
+				this.volumeService
+					.getCharacteristic(Characteristic.On)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.volumeService
+					.addCharacteristic(new Characteristic.Brightness())
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			}
 
 			this.accessory
 				.getService(Service.AccessoryInformation)
@@ -1766,16 +1769,29 @@ class volumeClient {
 				g_log.error("ERROR: Could not register volume control with name: %s", this.accessory.context.name);
 			}
 		} else {
-			this.accessory
-				.getService(Service.Lightbulb)
-				.getCharacteristic(Characteristic.On)
-				.on('get', this.getMuteState.bind(this))
-				.on('set', this.setMuteState.bind(this));
-			this.accessory
-				.getService(Service.Lightbulb)
-				.getCharacteristic(Characteristic.Brightness)
-				.on('get', this.getVolume.bind(this))
-				.on('set', this.setVolume.bind(this));
+			if (this.volumeAsFan){
+				this.accessory
+					.getService(Service.Fanv2)
+					.getCharacteristic(Characteristic.Active)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.accessory
+					.getService(Service.Fanv2)
+					.getCharacteristic(Characteristic.RotationSpeed)
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			} else {
+				this.accessory
+					.getService(Service.Lightbulb)
+					.getCharacteristic(Characteristic.On)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.accessory
+					.getService(Service.Lightbulb)
+					.getCharacteristic(Characteristic.Brightness)
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			}
 		}
 	}
 
@@ -1785,23 +1801,42 @@ class volumeClient {
 
 		if (traceOn && setAVRState)
 			logDebug('DEBUG: setReceiverState zone: ' + this.zone + ': ' + this.name);
-
-		if (stateInfo.masterVol) {
-			this.accessory
-					.getService(Service.Lightbulb)
-					.getCharacteristic(Characteristic.Brightness)
-					.updateValue(this.recv.volumeLevel[this.iterator]);
-		}
-		if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
-			this.accessory
-					.getService(Service.Lightbulb)
-					.getCharacteristic(Characteristic.On)
-					.updateValue(!this.recv.muteState[this.iterator]);
-		} else if (!this.recv.poweredOn[this.iterator]) {
-			this.accessory
-					.getService(Service.Lightbulb)
-					.getCharacteristic(Characteristic.On)
-					.updateValue(false);
+		if (this.volumeAsFan) {
+			if (stateInfo.masterVol) {
+				this.accessory
+						.getService(Service.Fanv2)
+						.getCharacteristic(Characteristic.RotationSpeed)
+						.updateValue(this.recv.volumeLevel[this.iterator]);
+			}
+			if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
+				this.accessory
+						.getService(Service.Fanv2)
+						.getCharacteristic(Characteristic.Active)
+						.updateValue(!this.recv.muteState[this.iterator]);
+			} else if (!this.recv.poweredOn[this.iterator]) {
+				this.accessory
+						.getService(Service.Fanv2)
+						.getCharacteristic(Characteristic.Active)
+						.updateValue(false);
+			}
+		} else {
+			if (stateInfo.masterVol) {
+				this.accessory
+						.getService(Service.Lightbulb)
+						.getCharacteristic(Characteristic.Brightness)
+						.updateValue(this.recv.volumeLevel[this.iterator]);
+			}
+			if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
+				this.accessory
+						.getService(Service.Lightbulb)
+						.getCharacteristic(Characteristic.On)
+						.updateValue(!this.recv.muteState[this.iterator]);
+			} else if (!this.recv.poweredOn[this.iterator]) {
+				this.accessory
+						.getService(Service.Lightbulb)
+						.getCharacteristic(Characteristic.On)
+						.updateValue(false);
+			}
 		}
 	}
 
@@ -1939,20 +1974,10 @@ class volumeClient {
 	testCachedAccessories() {
 		for (let i in cachedAccessories) {
 			if (cachedAccessories[i].context.subtype == 'volumeInput') {
-				if (cachedAccessories[i].context.name === this.accessory.context.name && 
-					cachedAccessories[i].context.ip === this.accessory.context.ip) {
+				if (this.uuid == cachedAccessories[i].UUID) {
 					this.accessory = cachedAccessories[i];
 					cachedAccessories.splice(i,1);
 					return true;
-				}
-				if (this.uuid == cachedAccessories[i].UUID) {
-					try {
-						this.api.unregisterPlatformAccessories(pluginName, platformName, [cachedAccessories[i]]);
-					} catch {
-						g_log.error("ERROR: Could not register volume control with name: %s", cachedAccessories[i].context.name);
-					}
-					cachedAccessories.splice(i,1);
-					return false;
 				}
 			}
 		}

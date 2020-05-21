@@ -73,10 +73,10 @@ Right: When settings the second dedicated switch, the input switches to Apple TV
 
 ## Config
 
-See sample-config.json for a complete sample JSON file. It is possible to add switches and tv services at the same time in one platform. The `pollInterval` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
+See sample-config.json for a complete sample JSON file. It is possible to add switches and tv services at the same time in one platform. The `"pollInterval"` is an optional value. Default is 3 seconds. If you want a lower or higher polling interval, set this value to a time in seconds. The following examples are given:
 
 ### TV Accessories
-TV accessories are added as devices. The `switchInfoMenu` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the JSON doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. When the `defaultInputID` is set, it will automatically select that input when starting up the receiver. After that input is set, the default volume wil be triggered too. `zone` can be set if you want to control the second or the third zone. Default is 1. The available inputs for zone 2 are different than for zone 1. `port` is optional and its standard value is `"auto"`. You can set `defaultVolume` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+TV accessories are added as devices. The `"switchInfoMenu"` can be set to true if you want to switch the settings and info button functionality. Default is false. The inputs are automatically ordered alphabetically in homekit, so the order in the JSON doesn't matter. Check the `InputsSample.json` for the correct inputs ID's. When the `"defaultInputID"` is set, it will automatically select that input when starting up the receiver. After that input is set, the default volume wil be triggered too. `"zone"` can be set if you want to control the second or the third zone. Default is `1`. The available inputs for zone 2 are different than for zone 1. `"port"` is optional and its standard value is `"auto"`. You can set `"defaultVolume"` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 
 ```json
 {
@@ -113,7 +113,7 @@ TV accessories are added as devices. The `switchInfoMenu` can be set to true if 
 ```
 
 ### Switches
-Set `pollAllInput` to true if you want a main switch to turn off the receiver no matter the selected input. Default is false. `zone` can be set if you want to control the second or the third zone. Default is 1. The available inputs for zone 2 are different than for zone 1. `port` is optional and its standard value is `"auto"`. You can set `defaultVolume` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+Set `"pollAllInput"` to true if you want a main switch to turn off the receiver no matter the selected input. Default is false. `"zone"` can be set if you want to control the second or the third zone. Default is `1`. The available inputs for zone 2 are different than for zone 1. `"port"` is optional and its standard value is `"auto"`. You can set `"defaultVolume"` if you want the plugin to set a volume when changing to that input. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 ```json
 {
     "platforms": [{
@@ -131,13 +131,19 @@ Set `pollAllInput` to true if you want a main switch to turn off the receiver no
             "ip": "192.168.1.45",
             "inputID": "GAME",
 			"defaultVolume": 35
+        },
+        {
+            "name": "AVR Zone 2",
+            "ip": "192.168.1.45",
+			"zone": 2,
+            "inputID": "TUNER"
         }]
     }]
 }
 ```
 
 ### Volume control
-Volume control accessories are added as volumeControl. The `"volumeLimit"` is the maximum volume you can set with this control. `zone` can be set if you want to control the second or the third zone. Default is 1. `port` is optional and its standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+Volume control accessories are added as volumeControl. The `"volumeLimit"` is the maximum volume you can set with this control. `"zone"` can be set if you want to control the second or the third zone. Default is `1`. `"volumeAsFan"` can be used to change the volume control from a lightbulb to a fan. This can be handy if you don't want to mute your receiver when you say to Siri "Turn on all lights". Set to `true` if you want it as a fan. Default is `false`. `"port"` is optional and its standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 ```json
 {
     "platforms": [{
@@ -147,6 +153,8 @@ Volume control accessories are added as volumeControl. The `"volumeLimit"` is th
             "name": "Receiver Volume",
             "ip": "192.168.1.45",
             "volumeLimit": 60,
+			"zone": 1,
+            "volumeAsFan": false,
             "port": 8080
         }]
     }]
