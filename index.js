@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.8.1';
+const pluginVersion = '2.8.2';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -1357,7 +1357,7 @@ class legacyClient {
 			logDebug('DEBUG: setupLegacyService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
-		this.uuid = UUIDGen.generate(this.name+this.ip+"switch");
+		this.uuid = UUIDGen.generate(this.name+this.ip+toString(this.zone)+"switch");
 
 		this.accessory =  new Accessory(this.name, this.uuid);
 
@@ -1718,7 +1718,7 @@ class volumeClient {
 			logDebug('DEBUG: setupVolumeService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
-		this.uuid = UUIDGen.generate(this.name+this.ip+this.volumeAsFan+"volumeControl");
+		this.uuid = UUIDGen.generate(this.name+this.ip+toString(this.zone)+this.volumeAsFan+"volumeControl");
 
 		this.accessory =  new Accessory(this.name, this.uuid);
 
