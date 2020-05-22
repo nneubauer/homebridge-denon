@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.8.3] - 2020-05-22
+### Fixed
+- Fixed second zone with same name UUID
+- Fixed config volumeAsFan GUI X
+
 ## [2.8.1] - 2020-05-21
 ### Fixed
 - Fixed wrong debug info

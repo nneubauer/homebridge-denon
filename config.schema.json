@@ -320,6 +320,13 @@
 							"required": false,
 							"maximum": 3
 						},
+						"volumeAsFan": {
+							"title": "Volume control as fan",
+							"description": "Use a fan to control the absolute volume instead of a lightbulb.",
+							"type": "boolean",
+							"default": false,
+							"required": false
+						},
 						"port": {
 							"title": "Port",
 							"description": "None for auto detect. Use 80, 8080 or telnet for manual select",
