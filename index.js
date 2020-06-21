@@ -7,11 +7,11 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.8.3';
+const pluginVersion = '2.8.4';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
-const defaultTrace = true;
+const defaultTrace = false;
 const autoDiscoverTime = 3000;
 const setAVRState = false;
 /* Setup settings button and info button */
@@ -1259,12 +1259,16 @@ class tvClient {
 
 		switch (remoteKey) {
 			case Characteristic.RemoteKey.REWIND:
+				ctrlString = 'MN9E';
 				break;
 			case Characteristic.RemoteKey.FAST_FORWARD:
+				ctrlString = 'MN9D';
 				break;
 			case Characteristic.RemoteKey.NEXT_TRACK:
+				ctrlString = 'MN9F';
 				break;
 			case Characteristic.RemoteKey.PREVIOUS_TRACK:
+				ctrlString = 'MN9G';
 				break;
 			case Characteristic.RemoteKey.ARROW_UP:
 				ctrlString = 'MNCUP';
@@ -1285,8 +1289,10 @@ class tvClient {
 				ctrlString = 'MNRTN';
 				break;
 			case Characteristic.RemoteKey.EXIT:
+				ctrlString = 'MNRTN';
 				break;
 			case Characteristic.RemoteKey.PLAY_PAUSE:
+				ctrlString = 'NS94';
 				break;
 			case Characteristic.RemoteKey.INFORMATION:
 				ctrlString = this.infoButton;
@@ -1363,11 +1369,6 @@ class legacyClient {
 
 		this.accessory.reachable = true;
 		
-		this.accessory.context.subtype = 'legacyInput';
-		this.accessory.context.name = this.name;
-		this.accessory.context.ip = this.ip;
-		this.accessory.context.inputID = this.inputID;
-		this.accessory.context.pollAllInput = this.pollAllInput;
 
 		let isCached = this.testCachedAccessories();
 		if (!isCached) {
@@ -1393,6 +1394,7 @@ class legacyClient {
 				g_log.error("ERROR: Could not register switch with name: %s", this.accessory.context.name);
 			}
 		} else {
+			g_log("Configured switch found: " + this.name);
 			this.accessory
 				.getService(Service.Switch)
 				.getCharacteristic(Characteristic.On)
@@ -1658,12 +1660,10 @@ class legacyClient {
 
 	testCachedAccessories() {
 		for (let i in cachedAccessories) {
-			if (cachedAccessories[i].context.subtype == 'legacyInput') {
-				if (this.uuid == cachedAccessories[i].UUID) {
-					this.accessory = cachedAccessories[i];
-					cachedAccessories.splice(i,1);
-					return true;
-				}
+			if (this.uuid == cachedAccessories[i].UUID) {
+				this.accessory = cachedAccessories[i];
+				cachedAccessories.splice(i,1);
+				return true;
 			}
 		}
 		return false;
@@ -1724,11 +1724,6 @@ class volumeClient {
 
 		this.accessory.reachable = true;
 		
-		this.accessory.context.subtype = 'volumeInput';
-		this.accessory.context.name = this.name;
-		this.accessory.context.ip = this.ip;
-		this.accessory.context.volumeLimit = this.volumeLimit;
-
 		let isCached = this.testCachedAccessories();
 		if (!isCached) {
 			g_log("New volumeControl configured: " + this.name);
@@ -1769,6 +1764,7 @@ class volumeClient {
 				g_log.error("ERROR: Could not register volume control with name: %s", this.accessory.context.name);
 			}
 		} else {
+			g_log("Configured volumeControl found: " + this.name);
 			if (this.volumeAsFan){
 				this.accessory
 					.getService(Service.Fanv2)
@@ -1973,12 +1969,10 @@ class volumeClient {
 
 	testCachedAccessories() {
 		for (let i in cachedAccessories) {
-			if (cachedAccessories[i].context.subtype == 'volumeInput') {
-				if (this.uuid == cachedAccessories[i].UUID) {
-					this.accessory = cachedAccessories[i];
-					cachedAccessories.splice(i,1);
-					return true;
-				}
+			if (this.uuid == cachedAccessories[i].UUID) {
+				this.accessory = cachedAccessories[i];
+				cachedAccessories.splice(i,1);
+				return true;
 			}
 		}
 		return false;
