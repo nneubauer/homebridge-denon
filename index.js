@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.8.4';
+const pluginVersion = '2.8.5';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -128,7 +128,6 @@ class denonClient {
 			logDebug('DEBUG: configureAccessory');
 		//logDebug(platformAccessory);
 
-		platformAccessory.reachable = true;
 		cachedAccessories.push(platformAccessory);
 	}
 	removeAccessory(platformAccessory){
@@ -811,6 +810,8 @@ class tvClient {
 			logDebug('DEBUG: setupTvService zone: ' + this.zone + ': ' + this.name);
 
 		this.tvAccesory = new Accessory(this.name, UUIDGen.generate(this.ip+this.name+"tvService"));
+		this.tvAccesory.category = this.api.hap.Categories.AUDIO_RECEIVER;
+		
 
 		this.tvService = new Service.Television(this.name, 'tvService');
 		this.tvService
@@ -1365,14 +1366,13 @@ class legacyClient {
 		/* Delay to wait for retrieve device info */
 		this.uuid = UUIDGen.generate(this.name+this.ip+toString(this.zone)+"switch");
 
-		this.accessory =  new Accessory(this.name, this.uuid);
-
-		this.accessory.reachable = true;
-		
-
 		let isCached = this.testCachedAccessories();
+
 		if (!isCached) {
 			g_log("New switch configured: " + this.name);
+
+			this.accessory =  new Accessory(this.name, this.uuid);
+
 			this.switchService = new Service.Switch(this.name, 'legacyInput');
 			this.switchService
 				.getCharacteristic(Characteristic.On)
@@ -1400,6 +1400,8 @@ class legacyClient {
 				.getCharacteristic(Characteristic.On)
 				.on('get', this.getPowerStateLegacy.bind(this))
 				.on('set', this.setPowerStateLegacy.bind(this));
+
+			// this.api.updatePlatformAccessories([this.accessory]);
 		}
 	}
 
@@ -1659,12 +1661,10 @@ class legacyClient {
 	}
 
 	testCachedAccessories() {
-		for (let i in cachedAccessories) {
-			if (this.uuid == cachedAccessories[i].UUID) {
-				this.accessory = cachedAccessories[i];
-				cachedAccessories.splice(i,1);
-				return true;
-			}
+		this.accessory = cachedAccessories.find(cachedAccessories => cachedAccessories.UUID === this.uuid);
+		if (this.accessory) {
+			cachedAccessories.splice(cachedAccessories.indexOf(this.accessory),1);
+			return true;
 		}
 		return false;
 	}
@@ -1719,13 +1719,11 @@ class volumeClient {
 			
 		/* Delay to wait for retrieve device info */
 		this.uuid = UUIDGen.generate(this.name+this.ip+toString(this.zone)+this.volumeAsFan+"volumeControl");
-
-		this.accessory =  new Accessory(this.name, this.uuid);
-
-		this.accessory.reachable = true;
-		
 		let isCached = this.testCachedAccessories();
+
 		if (!isCached) {
+			this.accessory =  new Accessory(this.name, this.uuid);
+
 			g_log("New volumeControl configured: " + this.name);
 			if (this.volumeAsFan){
 				this.volumeService = new Service.Fanv2(this.name, 'volumeInput');
@@ -1788,6 +1786,7 @@ class volumeClient {
 					.on('get', this.getVolume.bind(this))
 					.on('set', this.setVolume.bind(this));
 			}
+			// this.api.updatePlatformAccessories([this.accessory]);
 		}
 	}
 
@@ -1968,12 +1967,10 @@ class volumeClient {
 	}
 
 	testCachedAccessories() {
-		for (let i in cachedAccessories) {
-			if (this.uuid == cachedAccessories[i].UUID) {
-				this.accessory = cachedAccessories[i];
-				cachedAccessories.splice(i,1);
-				return true;
-			}
+		this.accessory = cachedAccessories.find(cachedAccessories => cachedAccessories.UUID === this.uuid);
+		if (this.accessory) {
+			cachedAccessories.splice(cachedAccessories.indexOf(this.accessory),1);
+			return true;
 		}
 		return false;
 	}
@@ -1981,6 +1978,7 @@ class volumeClient {
 	getName() {
 		return this.name;
 	}
+
 	/*****************************************
 	 * Volume service 
 	 ****************************************/
