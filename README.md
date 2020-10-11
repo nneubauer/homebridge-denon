@@ -143,7 +143,7 @@ Set `"pollAllInput"` to true if you want a main switch to turn off the receiver 
 ```
 
 ### Volume control
-Volume control accessories are added as volumeControl. The `"volumeLimit"` is the maximum volume you can set with this control. `"zone"` can be set if you want to control the second or the third zone. Default is `1`. `"volumeAsFan"` can be used to change the volume control from a lightbulb to a fan. This can be handy if you don't want to mute your receiver when you say to Siri "Turn on all lights". Set to `true` if you want it as a fan. Default is `false`. `"port"` is optional and its standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
+Volume control accessories are added as volumeControl. The `"volumeLimit"` is the maximum volume you can set with this control. `"zone"` can be set if you want to control the second or the third zone. Default is `1`. `"controlType"` can be used to change the volume control from a bulb to a fan or a speaker. This can be handy if you don't want to mute your receiver when you say to Siri "Turn on all lights". The speaker type is not yet supported in the Home app, but it is supported in 3rd party home applications like Home+. `"port"` is optional and its standard value is `"auto"`. If the plugin is not working, you can try to set it to `8080` for newer receivers, `80` for older ones and `"telnet"`for brand spanking new ones (first try auto as this automatically chooses the right ones). The found port used when on auto, is visible in the Homebridge log as: `port`.
 ```json
 {
     "platforms": [{
@@ -154,7 +154,7 @@ Volume control accessories are added as volumeControl. The `"volumeLimit"` is th
             "ip": "192.168.1.45",
             "volumeLimit": 60,
 	    "zone": 1,
-            "volumeAsFan": false,
+            "controlType": "bulb"
             "port": 8080
         }]
     }]
