@@ -52,4 +52,7 @@
 // http://192.168.1.45:8080/goform/formZone2_Zone2XmlStatusLite.xml
 
 
-http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2ON
+// http://192.168.1.45:8080/goform/formiPhoneAppDirect.xml?Z2ON
+
+
+// http://192.168.1.45:8080/goform/Deviceinfo.xml

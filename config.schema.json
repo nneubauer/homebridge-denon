@@ -320,12 +320,31 @@
 							"required": false,
 							"maximum": 3
 						},
-						"volumeAsFan": {
-							"title": "Volume control as fan",
-							"description": "Use a fan to control the absolute volume instead of a lightbulb.",
-							"type": "boolean",
-							"default": false,
-							"required": false
+						"controlType": {
+							"title": "Volume control block type",
+							"description": "You can use a fan or a speaker instead of a lightbulb to control the volume. The speaker is currently not supported in Apple's home app, but it does work in Home+ or Eve",
+							"type": "string",
+							"required": true,
+							"oneOf": [
+								{
+									"title": "bulb",
+									"enum": [
+										"bulb"
+									]
+								},
+								{
+									"title": "fan",
+									"enum": [
+										"fan"
+									]
+								},
+								{
+									"title": "speaker",
+									"enum": [
+										"speaker"
+									]
+								}
+							]
 						},
 						"port": {
 							"title": "Port",

@@ -7,7 +7,7 @@ const discover = require('./lib/discover');
 
 const pluginName = 'homebridge-denon-heos';
 const platformName = 'DenonAVR';
-const pluginVersion = '2.8.5';
+const pluginVersion = '2.9.0';
 
 const defaultPollingInterval = 3;
 const infoRetDelay = 250;
@@ -196,7 +196,7 @@ class receiver {
 		this.checkAliveInterval = null;
 
 		this.zTwoEn = true;
-		this.zThreeEn = false;
+		this.zThreeEn = true;
 
 		this.poweredOn = [false,false,false];
 		this.currentInputID = [null,null,null];
@@ -872,6 +872,14 @@ class tvClient {
 				logDebug('DEBUG: Remote control (VolumeSelector), pressed: ' + state === 1 ? 'Down' : 'Up');
 				this.setVolumeSwitch(state, callback, !state);
 			});
+		this.tvSpeakerService
+			.getCharacteristic(Characteristic.Volume)
+			.on('get', this.getVolume.bind(this))
+			.on('set', this.setVolume.bind(this));
+		this.tvSpeakerService
+			.getCharacteristic(Characteristic.Mute)
+			.on('get', this.getMuteState.bind(this))
+			.on('set', this.setMuteState.bind(this));
 		
 		this.tvAccesory.addService(this.tvSpeakerService);
 		this.tvService.addLinkedService(this.tvSpeakerService);
@@ -960,20 +968,37 @@ class tvClient {
 				this.tvService
 					.getCharacteristic(Characteristic.Active)
 					.updateValue(false); //tv service
-			if (this.volumeService) 
+			if (this.volumeService) {
 				this.volumeService
 					.getCharacteristic(Characteristic.On)
 					.updateValue(false);
+				this.volumeService
+					.getCharacteristic(Characteristic.Volume)
+					.updateValue(this.recv.volumeLevel[this.iterator]);
+				this.volumeService
+					.getCharacteristic(Characteristic.Mute)
+					.updateValue(false);
+			}
 		} else {
 			if (this.powerService) 
 				this.powerService
 					.getCharacteristic(Characteristic.On)
 					.updateValue(true);
-			if (this.tvService) {
+			if (this.tvService)
 				this.tvService
 					.getCharacteristic(Characteristic.Active)
 					.updateValue(true); //tv service
-				}
+			if (this.volumeService) {
+				this.volumeService
+					.getCharacteristic(Characteristic.On)
+					.updateValue(true);
+				this.volumeService
+					.getCharacteristic(Characteristic.Volume)
+					.updateValue(this.recv.volumeLevel[this.iterator]);
+				this.volumeService
+					.getCharacteristic(Characteristic.Mute)
+					.updateValue(this.recv.muteState[this.iterator]);
+			}
 		}
 	}
 
@@ -1199,6 +1224,138 @@ class tvClient {
 				power: that.recv.poweredOn[that.iterator],
 				inputID: inputName,
 				masterVol: null,
+				mute: null
+			}
+			that.recv.updateStates(that.recv, stateInfo, that.name);
+
+			callback();
+		}
+	}
+
+	getMuteState(callback) {
+		g_log.warn('getMuteState');
+		if (traceOn)
+			logDebug('DEBUG: getMuteState: ' + this.name);
+
+		if (this.recv.poweredOn[this.iterator]) {
+			callback(null, this.recv.muteState[this.iterator]);
+		} else {
+			callback(null, false);
+		}
+	}
+
+	setMuteState(state, callback) {
+		g_log.warn('setMuteState');
+		if (traceOn)
+			logDebug('DEBUG: setMuteState zone: ' + this.zone + ': ' + this.name);
+
+		var stateString;
+		if (this.zone == 1)
+			stateString = (state ? 'MUON' : 'MUOFF');
+		else if (this.zone == 2 || this.zone == 3)
+			stateString = 'Z' + this.zone + 'MU' + (state ? 'ON' : 'OFF');
+
+		var that = this;
+
+		if (this.recv.htmlControl) {
+			request('http://' + this.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + stateString, function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
+					logDebug('DEBUG: ' + error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					let stateInfo = {
+						zone: that.zone,
+						power: null,
+						inputID: null,
+						masterVol: null,
+						mute: state
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					callback();
+				}
+			});
+		} else {
+			that.recv.telnetConnection.send(stateString);
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				zone: that.zone,
+				power: null,
+				inputID: null,
+				masterVol: null,
+				mute: state
+			}
+			that.recv.updateStates(that.recv, stateInfo, that.name);
+
+			callback();
+		}
+	}
+
+	getVolume(callback) {	
+		g_log.warn('getVolume');
+		if (traceOn)
+			logDebug('DEBUG: getVolume zone: ' + this.zone + ': ' + this.name);
+
+		if (this.recv.poweredOn[this.iterator]) {
+			callback(null, this.recv.volumeLevel[this.iterator]);
+		} else {
+			callback(null, 0);
+		}
+	}
+
+	setVolume(level, callback) {		
+		g_log.warn('setVolume');
+		if (traceOn)
+			logDebug('DEBUG: setVolume: ' + this.name + ' to :' + level);
+
+		this.recv.volumeLevel[this.iterator] = level;
+		
+		var that = this;
+		var denonLevel;
+		if (level < 10)
+			denonLevel = '0' + level.toString();
+		else
+			denonLevel = level.toString();
+
+		var zoneSettings;
+		if (this.zone == 1)
+			zoneSettings = 'MV';
+		else if (this.zone == 2 || this.zone == 3)
+			zoneSettings = 'Z' + this.zone;
+
+		if (this.recv.htmlControl) {
+			request('http://' + that.ip + ':' + this.tvServicePort + '/goform/formiPhoneAppDirect.xml?' + zoneSettings + denonLevel, function(error, response, body) {
+				if(error) {
+					g_log.error("ERROR: Can't connect to receiver with ip: %s and port: %s", that.ip, that.tvServicePort);
+					logDebug('DEBUG: ' + error);
+					callback(error);
+				} else if (body.indexOf('Error 403: Forbidden') === 0) {
+					g_log.error('ERROR: Can not access receiver with IP: %s. Might be due to a wrong port. Try 80 or 8080 manually in config file.', that.ip);
+				} else {
+					/* Update possible other switches and accessories too */
+					let stateInfo = {
+						zone: that.zone,
+						power: null,
+						inputID: null,
+						masterVol: level,
+						mute: null
+					}
+					that.recv.updateStates(that.recv, stateInfo, that.name);
+
+					callback();
+				}
+			});
+		} else {
+			that.recv.telnetConnection.send(zoneSettings + denonLevel);
+			/* Update possible other switches and accessories too */
+			let stateInfo = {
+				zone: that.zone,
+				power: null,
+				inputID: null,
+				masterVol: level,
 				mute: null
 			}
 			that.recv.updateStates(that.recv, stateInfo, that.name);
@@ -1705,7 +1862,8 @@ class volumeClient {
 		if (this.volumeLimit < 0 || this.volumeLimit > 100)
 			this.volumeLimit = 100;
 
-		this.volumeAsFan = volumeControl.volumeAsFan || false;
+		this.controlType = volumeControl.controlType || 'bulb';
+		this.controlType.toLowerCase();
 
 		this.setupVolumeService();
 	}
@@ -1718,34 +1876,63 @@ class volumeClient {
 			logDebug('DEBUG: setupVolumeService zone: ' + this.zone + ': ' + this.name);
 			
 		/* Delay to wait for retrieve device info */
-		this.uuid = UUIDGen.generate(this.name+this.ip+toString(this.zone)+this.volumeAsFan+"volumeControl");
+		this.uuid = UUIDGen.generate(this.name+this.controlType+"volumeControl");
 		let isCached = this.testCachedAccessories();
 
 		if (!isCached) {
 			this.accessory =  new Accessory(this.name, this.uuid);
 
 			g_log("New volumeControl configured: " + this.name);
-			if (this.volumeAsFan){
-				this.volumeService = new Service.Fanv2(this.name, 'volumeInput');
-				this.volumeService
-					.getCharacteristic(Characteristic.Active)
-					.on('get', this.getMuteState.bind(this))
-					.on('set', this.setMuteState.bind(this));
-				this.volumeService
-					.addCharacteristic(new Characteristic.RotationSpeed())
-					.on('get', this.getVolume.bind(this))
-					.on('set', this.setVolume.bind(this));
-			} else {
+			if (this.controlType === 'bulb'){
 				this.volumeService = new Service.Lightbulb(this.name, 'volumeInput');
 				this.volumeService
 					.getCharacteristic(Characteristic.On)
 					.on('get', this.getMuteState.bind(this))
 					.on('set', this.setMuteState.bind(this));
 				this.volumeService
-					.addCharacteristic(new Characteristic.Brightness())
+					.getCharacteristic(Characteristic.Brightness)
 					.on('get', this.getVolume.bind(this))
 					.on('set', this.setVolume.bind(this));
+			} else if (this.controlType === 'fan') {
+				this.volumeService = new Service.Fanv2(this.name, 'volumeInput');
+				this.volumeService
+					.getCharacteristic(Characteristic.Active)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.volumeService
+					.getCharacteristic(Characteristic.RotationSpeed)
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			} else if (this.controlType === 'speaker') {
+				this.volumeService = new Service.Speaker(this.name, 'volumeInput');
+				this.volumeService
+					.getCharacteristic(Characteristic.Mute)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.volumeService
+					.getCharacteristic(Characteristic.Volume)
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			} else if (this.controlType === 'smartspeaker') {
+				// this.volumeService = new Service.SmartSpeaker(this.name, 'volumeInput');
+				// this.volumeService
+				// 	.getCharacteristic(Characteristic.CurrentMediaState)
+				// 	.on('get', this.getMedia.bind(this))
+				// 	.on('set', this.setMedia.bind(this));
+				// this.volumeService
+				// 	.getCharacteristic(Characteristic.TargetMediaState)
+				// 	.on('get', this.getMedia.bind(this))
+				// 	.on('set', this.setMedia.bind(this));
+				// this.volumeService
+				// 	.getCharacteristic(Characteristic.Mute)
+				// 	.on('get', this.getMuteState.bind(this))
+				// 	.on('set', this.setMuteState.bind(this));
+				// this.volumeService
+				// 	.getCharacteristic(Characteristic.Volume)
+				// 	.on('get', this.getVolume.bind(this))
+				// 	.on('set', this.setVolume.bind(this));
 			}
+
 
 			this.accessory
 				.getService(Service.AccessoryInformation)
@@ -1763,18 +1950,7 @@ class volumeClient {
 			}
 		} else {
 			g_log("Configured volumeControl found: " + this.name);
-			if (this.volumeAsFan){
-				this.accessory
-					.getService(Service.Fanv2)
-					.getCharacteristic(Characteristic.Active)
-					.on('get', this.getMuteState.bind(this))
-					.on('set', this.setMuteState.bind(this));
-				this.accessory
-					.getService(Service.Fanv2)
-					.getCharacteristic(Characteristic.RotationSpeed)
-					.on('get', this.getVolume.bind(this))
-					.on('set', this.setVolume.bind(this));
-			} else {
+			if (this.controlType === 'bulb') {
 				this.accessory
 					.getService(Service.Lightbulb)
 					.getCharacteristic(Characteristic.On)
@@ -1785,6 +1961,49 @@ class volumeClient {
 					.getCharacteristic(Characteristic.Brightness)
 					.on('get', this.getVolume.bind(this))
 					.on('set', this.setVolume.bind(this));
+			} else if (this.controlType === 'fan') {
+				this.accessory
+					.getService(Service.Fanv2)
+					.getCharacteristic(Characteristic.Active)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.accessory
+					.getService(Service.Fanv2)
+					.getCharacteristic(Characteristic.RotationSpeed)
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			} else if (this.controlType === 'speaker') {
+				this.accessory
+					.getService(Service.Speaker)
+					.getCharacteristic(Characteristic.Mute)
+					.on('get', this.getMuteState.bind(this))
+					.on('set', this.setMuteState.bind(this));
+				this.accessory
+					.getService(Service.Speaker)
+					.getCharacteristic(Characteristic.Volume)
+					.on('get', this.getVolume.bind(this))
+					.on('set', this.setVolume.bind(this));
+			} else if (this.controlType === 'smartspeaker') {
+				// this.volumeService
+				// 	.getService(Service.SmartSpeaker)
+				// 	.getCharacteristic(Characteristic.CurrentMediaState)
+				// 	.on('get', this.getMedia.bind(this))
+				// 	.on('set', this.setMedia.bind(this));
+				// this.volumeService
+				// 	.getService(Service.SmartSpeaker)
+				// 	.getCharacteristic(Characteristic.TargetMediaState)
+				// 	.on('get', this.getMedia.bind(this))
+				// 	.on('set', this.setMedia.bind(this));
+				// this.accessory
+				// 	.getService(Service.SmartSpeaker)
+				// 	.getCharacteristic(Characteristic.Mute)
+				// 	.on('get', this.getMuteState.bind(this))
+				// 	.on('set', this.setMuteState.bind(this));
+				// this.accessory
+				// 	.getService(Service.SmartSpeaker)
+				// 	.getCharacteristic(Characteristic.Volume)
+				// 	.on('get', this.getVolume.bind(this))
+				// 	.on('set', this.setVolume.bind(this));
 			}
 			// this.api.updatePlatformAccessories([this.accessory]);
 		}
@@ -1796,25 +2015,7 @@ class volumeClient {
 
 		if (traceOn && setAVRState)
 			logDebug('DEBUG: setReceiverState zone: ' + this.zone + ': ' + this.name);
-		if (this.volumeAsFan) {
-			if (stateInfo.masterVol) {
-				this.accessory
-						.getService(Service.Fanv2)
-						.getCharacteristic(Characteristic.RotationSpeed)
-						.updateValue(this.recv.volumeLevel[this.iterator]);
-			}
-			if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
-				this.accessory
-						.getService(Service.Fanv2)
-						.getCharacteristic(Characteristic.Active)
-						.updateValue(!this.recv.muteState[this.iterator]);
-			} else if (!this.recv.poweredOn[this.iterator]) {
-				this.accessory
-						.getService(Service.Fanv2)
-						.getCharacteristic(Characteristic.Active)
-						.updateValue(false);
-			}
-		} else {
+		if (this.controlType === 'bulb') {
 			if (stateInfo.masterVol) {
 				this.accessory
 						.getService(Service.Lightbulb)
@@ -1832,6 +2033,58 @@ class volumeClient {
 						.getCharacteristic(Characteristic.On)
 						.updateValue(false);
 			}
+		} else if (this.controlType === 'fan') {
+			if (stateInfo.masterVol) {
+				this.accessory
+						.getService(Service.Fanv2)
+						.getCharacteristic(Characteristic.RotationSpeed)
+						.updateValue(this.recv.volumeLevel[this.iterator]);
+			}
+			if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
+				this.accessory
+						.getService(Service.Fanv2)
+						.getCharacteristic(Characteristic.Active)
+						.updateValue(!this.recv.muteState[this.iterator]);
+			} else if (!this.recv.poweredOn[this.iterator]) {
+				this.accessory
+						.getService(Service.Fanv2)
+						.getCharacteristic(Characteristic.Active)
+						.updateValue(false);
+			}
+		} else if (this.controlType === 'speaker') {
+			if (stateInfo.masterVol) {
+				this.accessory
+					.getService(Service.Speaker)
+					.getCharacteristic(Characteristic.Volume)
+					.updateValue(this.recv.volumeLevel[this.iterator]);
+			}
+			if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
+				this.accessory
+					.getService(Service.Speaker)
+					.getCharacteristic(Characteristic.Mute)
+					.updateValue(this.recv.muteState[this.iterator]);
+			} 
+		} else if (this.controlType === 'smartspeaker') {
+			// this.volumeService
+			// 	.getService(Service.SmartSpeaker)
+			// 	.getCharacteristic(Characteristic.CurrentMediaState)
+			// 	.updateValue(0);
+			// this.volumeService
+			// 	.getService(Service.SmartSpeaker)
+			// 	.getCharacteristic(Characteristic.TargetMediaState)
+			// 	.updateValue(0);
+			// if (stateInfo.masterVol) {
+			// 	this.accessory
+			// 		.getService(Service.SmartSpeaker)
+			// 		.getCharacteristic(Characteristic.Volume)
+			// 		.updateValue(this.recv.volumeLevel[this.iterator]);
+			// }
+			// if ((stateInfo.mute === true || stateInfo.mute === false) && this.recv.poweredOn[this.iterator]) {
+			// 	this.accessory
+			// 		.getService(Service.SmartSpeaker)
+			// 		.getCharacteristic(Characteristic.Mute)
+			// 		.updateValue(this.recv.muteState[this.iterator]);
+			// } 
 		}
 	}
 
@@ -1839,8 +2092,12 @@ class volumeClient {
 		if (traceOn)
 			logDebug('DEBUG: getMuteState: ' + this.name);
 
+		let state = !this.recv.muteState[this.iterator]
+		if (this.controlType === 'bulb' || this.controlType === 'fan')
+			state = !state;
+			
 		if (this.recv.poweredOn[this.iterator]) {
-			callback(null, !this.recv.muteState[this.iterator]);
+			callback(null, state);
 		} else {
 			callback(null, false);
 		}
@@ -1850,11 +2107,14 @@ class volumeClient {
 		if (traceOn)
 			logDebug('DEBUG: setMuteState zone: ' + this.zone + ': ' + this.name);
 
+		if (this.controlType === 'bulb' || this.controlType === 'fan')
+			state = !state;
+
 		var stateString;
 		if (this.zone == 1)
-			stateString = (state ? 'MUOFF' : 'MUON');
+			stateString = (state ? 'MUON' : 'MUOFF');
 		else if (this.zone == 2 || this.zone == 3)
-			stateString = 'Z' + this.zone + 'MU' + (state ? 'OFF' : 'ON');
+			stateString = 'Z' + this.zone + 'MU' + (state ? 'ON' : 'OFF');
 
 		var that = this;
 
@@ -1872,7 +2132,7 @@ class volumeClient {
 						power: null,
 						inputID: null,
 						masterVol: null,
-						mute: !state
+						mute: state
 					}
 					that.recv.updateStates(that.recv, stateInfo, that.name);
 
@@ -1887,12 +2147,19 @@ class volumeClient {
 				power: null,
 				inputID: null,
 				masterVol: null,
-				mute: !state
+				mute: state
 			}
 			that.recv.updateStates(that.recv, stateInfo, that.name);
 
 			callback();
 		}
+	}
+	getMedia(callback) {
+		callback(null, 0);
+	}
+
+	setMedia(state, callback) {
+		callback();
 	}
 
 	getVolume(callback) {
