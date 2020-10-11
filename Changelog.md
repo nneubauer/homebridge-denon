@@ -6,13 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Add
-- Add support for multi zone.
 - Add option for auto discovery IP address.
 
 ### Change
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.9.0] - 2020-10-11
+### Added
+- Can set volume control now to a speaker type (not supported in native home app yet)
+- New way to set the volume control type
+
+### Fixed
+- Fixed support for Zone 3
+
+## [2.8.5] - 2020-06-24
+### Added
+- Support for receiver type in the Home app
+
 ## [2.8.3] - 2020-05-22
 ### Fixed
 - Fixed second zone with same name UUID
