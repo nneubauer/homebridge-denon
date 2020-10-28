@@ -39,13 +39,13 @@ var g_volLevel = [0,0,0];
 var g_muteState = [false,false,false];
 var g_inputID = [null,null,null];
 
-module.exports = homebridge => {
+module.exports = (homebridge) => {
 	Service = homebridge.hap.Service;
 	Characteristic = homebridge.hap.Characteristic;
 	Accessory = homebridge.platformAccessory;
 	UUIDGen = homebridge.hap.uuid;
 
-	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
+	homebridge.registerPlatform(platformName, denonClient);
 };
 
 exports.logDebug = function(string) {
@@ -73,54 +73,52 @@ class denonClient {
 			return;
 		}
 
-
 		traceOn = config.debugTrace || defaultTrace;
-
-		this.api.on('didFinishLaunching', function() {
-			logDebug("DidFinishLaunching");
-			didFinishLaunching = true;
-		}.bind(this));
-		
 
 		debugToInfo = config.debugToInfo || false;
 
 		/* Search for all available Denon receivers */
 		discoverDev = new discover(this, g_log, foundReceivers, autoDiscoverTime, pluginVersion);
-		
-		this.configReceivers = [];
 
-		try {
-			for (let i in config.switches) {
-				if (config.switches[i].ip !== undefined && !this.configReceivers[config.switches[i].ip] )
-					this.configReceivers[config.switches[i].ip] = new receiver(this, config, config.switches[i].ip);
+		api.on('didFinishLaunching', function() {
+			logDebug("DidFinishLaunching");
+			didFinishLaunching = true;
+
+			this.configReceivers = [];
+
+			try {
+				for (let i in config.switches) {
+					if (config.switches[i].ip !== undefined && !this.configReceivers[config.switches[i].ip] )
+						this.configReceivers[config.switches[i].ip] = new receiver(this, config, config.switches[i].ip);
+				}
+			} catch {
+				g_log.error("ERROR: Could not setup switches")
+				return;
 			}
-		} catch {
-			g_log.error("ERROR: Could not setup switches")
-			return;
-		}
-
-		try {
-			for (let i in config.devices) {
-				if (config.devices[i].ip !== undefined && !this.configReceivers[config.devices[i].ip])
-					this.configReceivers[config.devices[i].ip] = new receiver(this, config, config.devices[i].ip);
+	
+			try {
+				for (let i in config.devices) {
+					if (config.devices[i].ip !== undefined && !this.configReceivers[config.devices[i].ip])
+						this.configReceivers[config.devices[i].ip] = new receiver(this, config, config.devices[i].ip);
+				}
+			} catch {
+				g_log.error("ERROR: Could not setup devices")
+				return;
 			}
-		} catch {
-			g_log.error("ERROR: Could not setup devices")
-			return;
-		}
-
-		try {
-			for (let i in config.volumeControl) {
-				if (config.volumeControl[i].ip !== undefined && !this.configReceivers[config.volumeControl[i].ip]){
-					this.configReceivers[config.volumeControl[i].ip] = new receiver(this, config, config.volumeControl[i].ip);}
-
+	
+			try {
+				for (let i in config.volumeControl) {
+					if (config.volumeControl[i].ip !== undefined && !this.configReceivers[config.volumeControl[i].ip]){
+						this.configReceivers[config.volumeControl[i].ip] = new receiver(this, config, config.volumeControl[i].ip);}
+	
+				}
+			} catch {
+				g_log.error("ERROR: Could not setup volume control")
+				return;
 			}
-		} catch {
-			g_log.error("ERROR: Could not setup volume control")
-			return;
-		}
 
-		setTimeout(this.removeCachedAccessory.bind(this), autoDiscoverTime+500);
+			setTimeout(this.removeCachedAccessory.bind(this), autoDiscoverTime+5000);
+		}.bind(this));
 	}
 
 	configureAccessory(platformAccessory){
@@ -130,16 +128,7 @@ class denonClient {
 
 		cachedAccessories.push(platformAccessory);
 	}
-	removeAccessory(platformAccessory){
-		if (traceOn)
-			logDebug('DEBUG: removeAccessory');
-		//logDebug(platformAccessory);
-		try {
-			this.api.unregisterPlatformAccessories(pluginName, platformName, [platformAccessory]);
-		} catch {
-			g_log.error("ERROR: Could not unregister accessory with name: %s", platformAccessory.context.name);
-		}
-	}
+	
 	removeCachedAccessory(){
 		if (traceOn)
 			logDebug('DEBUG: removeCachedAccessory');
