@@ -184,8 +184,8 @@ class receiver {
 		this.webAPIPort = null;
 		this.checkAliveInterval = null;
 
-		this.zTwoEn = true;
-		this.zThreeEn = true;
+		this.zTwoEn = false;
+		this.zThreeEn = false;
 
 		this.poweredOn = [false,false,false];
 		this.currentInputID = [null,null,null];
@@ -412,8 +412,8 @@ class receiver {
 		if (!this.controlProtocolSet)
 			return;
 
-		if (traceOn)
-			logDebug('DEBUG: pollForUpdates zone: ' + zone + ': ' + this.ip);
+		// if (traceOn)
+		// 	logDebug('DEBUG: pollForUpdates zone: ' + zone + ': ' + this.ip);
 
 		/* Make sure that no poll is happening just after switch in input/power */
 		if (this.pollingTimeout) {
@@ -523,7 +523,12 @@ class receiver {
 	updateStates(that, stateInfo, curName) {
 		if (curName)
 			that.pollingTimeout = true;
-		// else
+
+			
+		if (stateInfo.masterVol == undefined)
+			stateInfo.masterVol = 0;
+
+		if (traceOn)
 			logDebug(stateInfo);
 
 		if (stateInfo.power === true || stateInfo.power === false)
@@ -765,7 +770,13 @@ class tvClient {
 		this.inputs = device.inputs;
 		this.zone = device.zone || 1;
 		if (this.zone < 1 || this.zone > 3)
-			zone = 1;
+			this.zone = 1;
+
+		if (this.zone == 2)
+			this.recv.zTwoEn = true;
+		if (this.zone == 3)
+			this.recv.zThreeEn = true;
+
 		this.iterator = this.zone - 1;
 		this.defaultVolume = {};
 		
@@ -1483,7 +1494,13 @@ class legacyClient {
 		this.inputID = switches.inputID;
 		this.zone = switches.zone || 1;
 		if (this.zone < 1 || this.zone > 3)
-			zone = 1;
+			this.zone = 1;
+
+		if (this.zone == 2)
+			this.recv.zTwoEn = true;
+		if (this.zone == 3)
+			this.recv.zThreeEn = true;
+
 		this.iterator = this.zone - 1;
 		this.pollAllInput = switches.pollAllInput || false;
 
@@ -1842,7 +1859,13 @@ class volumeClient {
 		this.ip = volumeControl.ip;
 		this.zone = volumeControl.zone || 1;
 		if (this.zone < 1 || this.zone > 3)
-			zone = 1;
+			this.zone = 1;
+
+		if (this.zone == 2)
+			this.recv.zTwoEn = true;
+		if (this.zone == 3)
+			this.recv.zThreeEn = true;
+
 		this.iterator = this.zone - 1;
 
 		this.volumeLimit = volumeControl.volumeLimit || 100;
