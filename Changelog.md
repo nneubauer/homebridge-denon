@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.9.1] - 2020-10-28
+### Fixed
+- Possible fix for handling cached accessories
+
 ## [2.9.0] - 2020-10-11
 ### Added
 - Can set volume control now to a speaker type (not supported in native home app yet)

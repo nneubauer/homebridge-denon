@@ -1,6 +1,6 @@
 {
   "name": "homebridge-denon-heos",
-  "version": "2.9.0",
+  "version": "2.9.1",
   "description": "Denon and possibly Marantz (some are tested with positive results) AVR support for Homebridge: https://github.com/nfarina/homebridge with support for newer version of receiver. This plugin uses the http commands to control the receivers. It is also possible to add a receiver as a tv to your homekit. This way, you can control the receiver with the remote. Set the volume with the remote and change the input, all in one block.",
   "main": "index.js",
   "scripts": {
