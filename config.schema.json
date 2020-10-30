@@ -339,7 +339,7 @@
 									]
 								},
 								{
-									"title": "speaker",
+									"title": "speaker (not supported in Apple Home app yet)",
 									"enum": [
 										"speaker"
 									]

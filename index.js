@@ -45,7 +45,7 @@ module.exports = (homebridge) => {
 	Accessory = homebridge.platformAccessory;
 	UUIDGen = homebridge.hap.uuid;
 
-	homebridge.registerPlatform(platformName, denonClient);
+	homebridge.registerPlatform(pluginName, platformName, denonClient, true);
 };
 
 exports.logDebug = function(string) {
@@ -122,17 +122,26 @@ class denonClient {
 	}
 
 	configureAccessory(platformAccessory){
-		if (traceOn)
+		if (traceOn) {
 			logDebug('DEBUG: configureAccessory');
-		//logDebug(platformAccessory);
+			try {
+				logDebug(platformAccessory.displayName);
+			} catch {
+			}
+		}
 
 		cachedAccessories.push(platformAccessory);
 	}
 	
 	removeCachedAccessory(){
-		if (traceOn)
+		if (traceOn) {
 			logDebug('DEBUG: removeCachedAccessory');
-		//logDebug(cachedAccessories);
+			try {
+				for (let i in cachedAccessories) 
+					logDebug(cachedAccessories[0].displayName);
+			} catch {
+			}
+		}
 
 		try {
 			this.api.unregisterPlatformAccessories(pluginName, platformName, cachedAccessories);
@@ -1155,10 +1164,12 @@ class tvClient {
 					this.tvService
 						.getCharacteristic(Characteristic.ActiveIdentifier)
 						.updateValue(i);
+						callback(null, i);
+						return;
 				}
 			}
 		}
-		callback();
+		callback(null, 0);
 	}
 
 	setAppSwitchState(state, callback, inputName) {
