@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve volume control continuous pressing button for remote widget.
 
 ## [Released]
+## [2.9.7] - 2020-11-05
+### Fixed
+- Removed some debug logs
+
 ## [2.9.6] - 2020-10-28
 ### Fixed
 - Fixed bug for homebridge 1.3

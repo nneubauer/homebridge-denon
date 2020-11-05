@@ -611,8 +611,6 @@ class receiver {
 	}
 	
 	send(cmd) {
-        logDebug('DEBUG: send command ' + cmd);
-
         if (cmd && this.queue.length) {
             logDebug('DEBUG: pushed command to queue');
             this.queue.push(cmd);
@@ -1244,7 +1242,6 @@ class tvClient {
 	}
 
 	getMuteState(callback) {
-		g_log.warn('getMuteState');
 		if (traceOn)
 			logDebug('DEBUG: getMuteState: ' + this.name);
 
@@ -1256,7 +1253,6 @@ class tvClient {
 	}
 
 	setMuteState(state, callback) {
-		g_log.warn('setMuteState');
 		if (traceOn)
 			logDebug('DEBUG: setMuteState zone: ' + this.zone + ': ' + this.name);
 
@@ -1306,7 +1302,6 @@ class tvClient {
 	}
 
 	getVolume(callback) {	
-		g_log.warn('getVolume');
 		if (traceOn)
 			logDebug('DEBUG: getVolume zone: ' + this.zone + ': ' + this.name);
 
@@ -1318,7 +1313,6 @@ class tvClient {
 	}
 
 	setVolume(level, callback) {		
-		g_log.warn('setVolume');
 		if (traceOn)
 			logDebug('DEBUG: setVolume: ' + this.name + ' to :' + level);
 
