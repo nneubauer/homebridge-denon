@@ -1,0 +1,388 @@
+{
+	"pluginAlias": "DenonAVR",
+	"pluginType": "platform",
+	"footerDisplay": "Homebridge plugin for denon/marantz receivers. Possible to add the receivers as TV service, which enables the posibility to use the remote on the receiver and switch inputs with one block in your homekit screen. [homebridge-denon-heos](https://github.com/Martvvliet/homebridge-denon-heos).",
+	"schema": {
+		"type": "object",
+		"properties": {
+			"pollInterval": {
+				"title": "Polling interval",
+				"description": "The state of the receiver is polled every 3 seconds. Change this interval with this value. The value is the interval in seconds.",
+				"type": "integer",
+				"placeholder": 3,
+				"required": false
+			},
+			"debugToInfo": {
+				"title": "Print debug log in info log.",
+				"description": "Set to true if you wan't to debug the plugin but you don't have access to the debug log.",
+				"type": "boolean",
+				"default": false,
+				"required": false
+			},
+			"devices": {
+				"description": "Information on configuring Devices can be found on https://github.com/Martvvliet/homebridge-denon-heos",
+				"title": "Devices",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"name": {
+							"title": "Name",
+							"type": "string",
+							"default": "Denon Receiver",
+							"required": true,
+							"minLength": 4
+						},
+						"ip": {
+							"title": "IP address",
+							"type": "string",
+							"placeholder": "192.168.xx.xx",
+							"format": "ipv4",
+							"required": true,
+							"minLength": 4
+						},
+						"port": {
+							"title": "Port",
+							"description": "None for auto detect. Use 80, 8080 or telnet for manual select.",
+							"type": "string",
+							"required": false,
+							"oneOf": [
+								{
+									"title": "80",
+									"enum": [
+										"80"
+									]
+								},
+								{
+									"title": "8080",
+									"enum": [
+										"8080"
+									]
+								},
+								{
+									"title": "telnet",
+									"enum": [
+										"telnet"
+									]
+								}
+							]
+						},
+						"zone": {
+							"title": "Zone",
+							"description": "Set if you want to use a specific zone.",
+							"type": "integer",
+							"default": 1,
+							"required": false,
+							"maximum": 3
+						},
+						"switchInfoMenu": {
+							"title": "Switch Info/Menu button.",
+							"description": "This will switch the functionality of the info and the menu button. This will enable the possibility to go to the menu from the remote widget.",
+							"type": "boolean",
+							"default": true,
+							"required": true
+						},
+						"defaultInputID": {
+							"title": "Default InputID",
+							"type": "string",
+							"placeholder": "None",
+							"required": false,
+							"typeahead": {
+								"source": [
+									"MPLAY",
+									"GAME",
+									"TV",
+									"CD",
+									"SPOTIFY",
+									"NET",
+									"CBL/SAT",
+									"SAT/CBL",
+									"DVD",
+									"BD",
+									"GAME2",
+									"AUX1",
+									"USB/IPOD",
+									"TUNER",
+									"NETWORK",
+									"IRADIO",
+									"DOCK",
+									"IPOD",
+									"NET/USB",
+									"RHAPSODY",
+									"PANDORA",
+									"LASTFM",
+									"IRP",
+									"FAVORITES",
+									"SERVER"
+								]
+							}
+						},
+						"inputs": {
+							"title": "List with selectable inputs",
+							"description": "The list with used inputs. If you don't know what input ID's are used, go to https://github.com/Martvvliet/homebridge-denon-heos for more information on retrieving the correct names.",
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"inputID": {
+										"title": "Input ID",
+										"type": "string",
+										"placeholder": "MPLAY",
+										"required": true,
+										"typeahead": {
+											"source": [
+												"MPLAY",
+												"GAME",
+												"TV",
+												"CD",
+												"SPOTIFY",
+												"NET",
+												"CBL/SAT",
+												"SAT/CBL",
+												"DVD",
+												"BD",
+												"GAME2",
+												"AUX1",
+												"USB/IPOD",
+												"TUNER",
+												"NETWORK",
+												"IRADIO",
+												"DOCK",
+												"IPOD",
+												"NET/USB",
+												"RHAPSODY",
+												"PANDORA",
+												"LASTFM",
+												"IRP",
+												"FAVORITES",
+												"SERVER"
+											]
+										}
+									},
+									"name": {
+										"title": "Input name",
+										"type": "string",
+										"placeholder": "Apple TV",
+										"required": true,
+										"minLength": 4
+									},
+									"defaultVolume": {
+										"title": "Default volume",
+										"description": "This volume will be set when turning on this switch. You can define a different default volume for input. 0 is disabled.",
+										"placeholder": 0,
+										"type": "integer",
+										"required": false,
+										"maximum": 100
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"switches": {
+				"description": "Information on configuring Switches can be found on https://github.com/Martvvliet/homebridge-denon-heos",
+				"title": "Switches",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"name": {
+							"title": "Name",
+							"type": "string",
+							"default": "Denon Receiver Input",
+							"required": true,
+							"minLength": 4
+						},
+						"ip": {
+							"title": "IP address",
+							"type": "string",
+							"placeholder": "192.168.xx.xx",
+							"format": "ipv4",
+							"required": true,
+							"minLength": 4
+						},
+						"port": {
+							"title": "Port",
+							"description": "None for auto detect. Use 80, 8080 or telnet for manual select",
+							"type": "string",
+							"required": false,
+							"oneOf": [
+								{
+									"title": "80",
+									"enum": [
+										"80"
+									]
+								},
+								{
+									"title": "8080",
+									"enum": [
+										"8080"
+									]
+								},
+								{
+									"title": "telnet",
+									"enum": [
+										"telnet"
+									]
+								}
+							]
+						},
+						"zone": {
+							"title": "Zone",
+							"description": "Set if you want to use a specific zone.",
+							"type": "integer",
+							"default": 1,
+							"required": false,
+							"maximum": 3
+						},
+						"inputID": {
+							"title": "Input ID",
+							"description": "The list with used inputs. If you don't know what input ID's are used, go to https://github.com/Martvvliet/homebridge-denon-heos for more information on retrieving the correct names.",
+							"type": "string",
+							"placeholder": "MPLAY",
+							"required": true,
+							"typeahead": {
+								"source": [
+									"MPLAY",
+									"GAME",
+									"TV",
+									"CD",
+									"SPOTIFY",
+									"NET",
+									"CBL/SAT",
+									"SAT/CBL",
+									"DVD",
+									"BD",
+									"GAME2",
+									"AUX1",
+									"USB/IPOD",
+									"TUNER",
+									"NETWORK",
+									"IRADIO",
+									"DOCK",
+									"IPOD",
+									"NET/USB",
+									"RHAPSODY",
+									"PANDORA",
+									"LASTFM",
+									"IRP",
+									"FAVORITES",
+									"SERVER"
+								]
+							}
+						},
+						"pollAllInput": {
+							"title": "Overall power switch",
+							"description": "Use as overall receiver power state with 'input ID' as default input when turning on the receiver through this switch.",
+							"type": "boolean",
+							"default": false,
+							"required": false
+						},
+						"defaultVolume": {
+							"title": "Default volume",
+							"description": "This volume will be set when turning on this switch. You can define a different default volume for every switch. 0 is disabled.",
+							"placeholder": 0,
+							"type": "integer",
+							"required": false,
+							"maximum": 100
+						}
+					}
+				}
+			},
+			"volumeControl": {
+				"description": "Absolute volume control through a lightbulb. The 'volumeLimit' is the maximum volume you can set with this control. Information on configuring Volume Control can be found on https://github.com/Martvvliet/homebridge-denon-heos",
+				"title": "Volume Control",
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"name": {
+							"title": "Name",
+							"type": "string",
+							"default": "Receiver volume",
+							"required": true,
+							"minLength": 4
+						},
+						"ip": {
+							"title": "IP address",
+							"type": "string",
+							"placeholder": "192.168.xx.xx",
+							"format": "ipv4",
+							"required": true,
+							"minLength": 4
+						},
+						"zone": {
+							"title": "Zone",
+							"description": "Set if you want to use a specific zone.",
+							"type": "integer",
+							"default": 1,
+							"required": false,
+							"maximum": 3
+						},
+						"controlType": {
+							"title": "Volume control block type",
+							"description": "You can use a fan or a speaker instead of a lightbulb to control the volume. The speaker is currently not supported in Apple's home app, but it does work in Home+ or Eve",
+							"type": "string",
+							"required": true,
+							"oneOf": [
+								{
+									"title": "bulb",
+									"enum": [
+										"bulb"
+									]
+								},
+								{
+									"title": "fan",
+									"enum": [
+										"fan"
+									]
+								},
+								{
+									"title": "speaker (not supported in Apple Home app yet)",
+									"enum": [
+										"speaker"
+									]
+								}
+							]
+						},
+						"port": {
+							"title": "Port",
+							"description": "None for auto detect. Use 80, 8080 or telnet for manual select",
+							"type": "string",
+							"required": false,
+							"oneOf": [
+								{
+									"title": "80",
+									"enum": [
+										"80"
+									]
+								},
+								{
+									"title": "8080",
+									"enum": [
+										"8080"
+									]
+								},
+								{
+									"title": "telnet",
+									"enum": [
+										"telnet"
+									]
+								}
+							]
+						},
+						"volumeLimit": {
+							"title": "Volume limit",
+							"description": "This is the maximum volume you can set with this control",
+							"type": "integer",
+							"default": 60,
+							"required": true,
+							"maximum": 100
+						}
+					}
+				}
+			}
+		}
+	}
+}

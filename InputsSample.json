@@ -1,0 +1,102 @@
+"inputs": [
+	{
+		"inputID": "MPLAY",
+		"name": "MPLAY"
+	},
+	{
+		"inputID": "GAME",
+		"name": "Game"
+	},
+	{
+		"inputID": "TV",
+		"name": "TV"
+	},
+	{
+		"inputID": "CD",
+		"name": "CD"
+	},
+	{
+		"inputID": "SPOTIFY",
+		"name": "Spotify"
+	},
+	{
+		"inputID": "NET",
+		"name": "HEOS"
+	},
+	{
+		"inputID": "CBL/SAT",
+		"name": "Cable/Satellite"
+	},
+	{
+		"inputID": "DVD",
+		"name": "DVD"
+	},
+	{
+		"inputID": "BD",
+		"name": "Blu-Ray"
+	},
+	{
+		"inputID": "GAME2",
+		"name": "Game 2"
+	},
+	{
+		"inputID": "AUX1",
+		"name": "Aux"
+	},
+	{
+		"inputID": "USB/IPOD",
+		"name": "USB/iPod"
+	},
+	{
+		"inputID": "TUNER",
+		"name": "Tuner"
+	},
+	{
+		"inputID": "NETWORK",
+		"name": "Network"
+	},
+	{
+		"inputID": "IRADIO",
+		"name": "IRadio"
+	},
+	{
+		"inputID": "SAT/CBL",
+		"name": "Satellite/Cable"
+	},
+	{
+		"inputID": "DOCK",
+		"name": "Dock"
+	},
+	{
+		"inputID": "IPOD",
+		"name": " iPod"
+	},
+	{
+		"inputID": "NET/USB",
+		"name": "Network/USB"
+	},
+	{
+		"inputID": "RHAPSODY",
+		"name": "Rhapsody"
+	},
+	{
+		"inputID": "PANDORA",
+		"name": "Pandora"
+	},
+	{
+		"inputID": "LASTFM",
+		"name": "LastFM"
+	},
+	{
+		"inputID": "IRP",
+		"name": " IRP"
+	},
+	{
+		"inputID": "FAVORITES",
+		"name": "Favorites"
+	},
+	{
+		"inputID": "SERVER",
+		"name": "Server"
+	}
+]
